@@ -1,19 +1,17 @@
-from pyralysis.io import DaskMS
-# from pyralysis.reconstruction import Image
+import sys
 import astropy.units as u
 from scipy import ndimage
 import scipy as sp
 import numpy as np
-from pyralysis.units import lambdas_equivalencies
-from pyralysis.transformers.weighting_schemes import Uniform, Robust
-from pyralysis.transformers import Gridder, HermitianSymmetry, DirtyMapper
-from pyralysis.io import FITS
 from astropy.units import Quantity
 import re
 from iminuit import Minuit
 from astropy.io import fits
 import os
-# import cmath
+
+HOME = os.environ.get('HOME')
+include_path = HOME + '/gitcommon/VisAlign/'
+sys.path.append(include_path)
 
 
 def cartesian2polar(outcoords, inputshape, origin, fieldscale=1.):
@@ -45,7 +43,7 @@ def polarexpand(im):
     return im_polar
 
 
-def punch_vis(im, du, fileout, CRPIX1=1., CRPIX2=1.):
+def punch_vis(im, duvalue, fileout, CRPIX1=1., CRPIX2=1.):
     print("punching ", fileout)
     nx, ny = im.shape
     hdu = fits.PrimaryHDU()
@@ -55,10 +53,10 @@ def punch_vis(im, du, fileout, CRPIX1=1., CRPIX2=1.):
     CRPIX2 = (ny + 1.) / 2.
     hdr['CRPIX1'] = CRPIX1
     hdr['CRVAL1'] = 0.
-    hdr['CDELT1'] = -du.value
+    hdr['CDELT1'] = -duvalue
     hdr['CRPIX2'] = CRPIX2
     hdr['CRVAL2'] = 0.
-    hdr['CDELT2'] = du.value
+    hdr['CDELT2'] = duvalue
     hdr['BUNIT'] = 'Jy'
     hdu.header = hdr
     hdu.writeto(fileout, overwrite=True)
@@ -85,75 +83,23 @@ def chi2(V_S, V_L, w, uus, vvs, alpha_R, delta_x, delta_y):
     return retval
 
 
-def gridvis(file_ms,
-            imsize=2048,
-            hermitian_symmetry=False,
-            dx=None,
-            wantdirtymap=False):
-
-    print("processing: ", file_ms)
-    x = DaskMS(input_name=file_ms)
-    dataset = x.read()
-    #dataset.field.mean_ref_dir
-    #dataset.psf[0].sigma
-
-    if hermitian_symmetry:
-        h_symmetry = HermitianSymmetry(input_data=dataset)
-        h_symmetry.apply()
-
-    dx_theo = Quantity(dataset.theo_resolution)
-    dx_theo = dx_theo.to(u.arcsec)
-    print("theoretical formula for finest angular scale  ", dx_theo)
-    print("recommended  pixel size", dx_theo / 7.)
-
-    if dx == None:
-        print("using theoretical formula for pixel size")
-        dx = dx_theo / 10.
-    else:
-        print("sky image pixels: ", dx.to(u.arcsec))
-
-    # du = (1/(imsize*dx)).to(u.lambdas, equivalencies=lambdas_equivalencies())
-
-    gridder = Gridder(imsize=imsize,
-                      cellsize=dx,
-                      padding_factor=1.0,
-                      hermitian_symmetry=hermitian_symmetry)
-
-    dirty_mapper = DirtyMapper(input_data=dataset,
-                               imsize=imsize,
-                               padding_factor=1.0,
-                               cellsize=dx,
-                               stokes="I,Q",
-                               hermitian_symmetry=False)
-
-    dirty_images_natural = dirty_mapper.transform()
-    gridded_visibilities_nat = dirty_mapper.uvgridded_visibilities.compute()
-    gridded_weights_nat = dirty_mapper.uvgridded_weights.compute()
-
-    if wantdirtymap:
-        dirty_image_natural = dirty_images_natural[0].data[0].compute()
-        dirty_beam_natural = dirty_images_natural[1].data[0].compute()
-        fits_io = FITS()
-        fits_io.write(dirty_images_natural[0].data, output_name=wantdirtymap)
-
-    return dx, gridded_visibilities_nat, gridded_weights_nat
-
-
-def xcorr(file_visSBs,
-          file_visLBs,
-          dx,
-          imsize,
-          Grid=True,
-          Grid_LBs=True,
-          uvrange=False,
-          DefaultUvrange=False,
-          DoMinos=False,
-          kernel_w_L=5,
-          kernel_w_S=5,
-          wprof_factor=10.,
-          min_wS=100.,
-          min_wL=100.,
-          outputdir='output_xcorr/'):
+def xcorr(
+        file_visSBs,
+        file_visLBs,
+        dx,
+        imsize,
+        GridScheme='Pyra',  # 'tclean'
+        Grid=True,
+        Grid_LBs=True,
+        uvrange=False,
+        DefaultUvrange=False,
+        DoMinos=False,
+        kernel_w_L=5,
+        kernel_w_S=5,
+        wprof_factor=10.,
+        min_wS=100.,
+        min_wL=100.,
+        outputdir='output_xcorr/'):
     nx = imsize
     ny = imsize
 
@@ -165,29 +111,55 @@ def xcorr(file_visSBs,
     file_gridded_weights_LBs = outputdir + 'LBs_gridded_weights_nat.npy'
 
     if Grid:
-        #file_dirty = re.sub('.ms', '.fits', file_visSBs)
-        file_dirty = 'dirty_' + os.path.basename(file_visSBs) + '.fits'
-        dx, SBs_gridded_visibilities_nat, SBs_gridded_weights_nat = gridvis(
-            file_visSBs, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
+        if (GridScheme == 'Pyra'):
+            file_dirty = 'dirty_' + os.path.basename(file_visSBs) + '.fits'
+            import Pyra_grid
+            from pyralysis.units import lambdas_equivalencies
+            dx, SBs_gridded_visibilities_nat, SBs_gridded_weights_nat = Pyra_grid.gridvis(
+                file_visSBs, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
+            du = (1 / (imsize * dx)).to(u.lambdas,
+                                        equivalencies=lambdas_equivalencies())
+            duvalue = du.value
+        elif (GridScheme == 'tclean'):
+            import Tclean_grid
+            file_dirty = 'dirty_' + os.path.basename(file_visSBs)
+            dx, SBs_gridded_visibilities_nat, SBs_gridded_weights_nat = Tclean_grid.gridvis(
+                file_visSBs,
+                imsize=imsize,
+                tcleanimagename=file_dirty,
+                dx=dx,
+                outputdir=outputdir)
+
         np.save(file_gridded_vis_SBs, SBs_gridded_visibilities_nat)
         np.save(file_gridded_weights_SBs, SBs_gridded_weights_nat)
         print("sky image pixels: ", dx.to(u.arcsec))
 
     if Grid_LBs:
+        if (GridScheme == 'Pyra'):
+            file_dirty = 'dirty_' + os.path.basename(file_visLBs) + '.fits'
+            import Pyra_grid
+            from pyralysis.units import lambdas_equivalencies
+            dx, LBs_gridded_visibilities_nat, LBs_gridded_weights_nat = Pyra_grid.gridvis(
+                file_visLBs, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
+            du = (1 / (imsize * dx)).to(u.lambdas,
+                                        equivalencies=lambdas_equivalencies())
+            duvalue = du.value
+        elif (GridScheme == 'tclean'):
+            import Tclean_grid
+            file_dirty = 'dirty_' + os.path.basename(file_visSBs)
+            dx, LBs_gridded_visibilities_nat, LBs_gridded_weights_nat = Tclean_grid.gridvis(
+                file_visLBs,
+                imsize=imsize,
+                tcleanimagename=file_dirty,
+                dx=dx,
+                outputdir=outputdir)
 
-        #file_dirty = re.sub('.ms', '.fits', file_visLBs)
-        #file_dirty = 'dirty_' + file_dirty
-        #file_dirty = re.sub('.ms', '.fits', file_visSBs)
-        file_dirty = 'dirty_' + os.path.basename(file_visLBs) + '.fits'
-
-        dx, LBs_gridded_visibilities_nat, LBs_gridded_weights_nat = gridvis(
-            file_visLBs, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
         np.save(file_gridded_vis_LBs, LBs_gridded_visibilities_nat)
         np.save(file_gridded_weights_LBs, LBs_gridded_weights_nat)
 
-    du = (1 / (imsize * dx)).to(u.lambdas,
-                                equivalencies=lambdas_equivalencies())
-
+    du = (1 / (imsize * dx.to(u.rad).value))
+    duvalue = du
+    
     SBs_gridded_visibilities_nat = np.load(file_gridded_vis_SBs)
     SBs_gridded_weights_nat = np.load(file_gridded_weights_SBs)
     LBs_gridded_visibilities_nat = np.load(file_gridded_vis_LBs)
@@ -198,15 +170,25 @@ def xcorr(file_visSBs,
     print(SBs_gridded_visibilities_nat.dtype)
     print(SBs_gridded_weights_nat.shape)
 
-    V_S = SBs_gridded_visibilities_nat[0, :, :]
-    V_SR = SBs_gridded_visibilities_nat[0, :, :].real
-    V_SI = SBs_gridded_visibilities_nat[0, :, :].imag
-    V_L = LBs_gridded_visibilities_nat[0, :, :]
-    V_LR = LBs_gridded_visibilities_nat[0, :, :].real
-    V_LI = LBs_gridded_visibilities_nat[0, :, :].imag
-    w_S = SBs_gridded_weights_nat[0, :, :]
-    w_L = LBs_gridded_weights_nat[0, :, :]
-
+    if GridScheme == 'Pyra':
+        V_S = SBs_gridded_visibilities_nat[0, :, :]
+        V_SR = SBs_gridded_visibilities_nat[0, :, :].real
+        V_SI = SBs_gridded_visibilities_nat[0, :, :].imag
+        V_L = LBs_gridded_visibilities_nat[0, :, :]
+        V_LR = LBs_gridded_visibilities_nat[0, :, :].real
+        V_LI = LBs_gridded_visibilities_nat[0, :, :].imag
+        w_S = SBs_gridded_weights_nat[0, :, :]
+        w_L = LBs_gridded_weights_nat[0, :, :]
+    else:
+        V_S = SBs_gridded_visibilities_nat
+        V_SR = SBs_gridded_visibilities_nat.real
+        V_SI = SBs_gridded_visibilities_nat.imag
+        V_L = LBs_gridded_visibilities_nat
+        V_LR = LBs_gridded_visibilities_nat.real
+        V_LI = LBs_gridded_visibilities_nat.imag
+        w_S = SBs_gridded_weights_nat
+        w_L = LBs_gridded_weights_nat
+        
     from scipy.signal import medfilt2d
 
     print('filtering V_L')
@@ -241,9 +223,9 @@ def xcorr(file_visSBs,
     Vamp_S = np.sqrt(V_SI**2 + V_SR**2)
     Vamp_L = np.sqrt(V_LI**2 + V_LR**2)
 
-    print("uv cell size", du)
-    us = -1 * (np.arange(0, nx) - (nx - 1.) / 2.) * du.value
-    vs = (np.arange(0, ny) - (ny - 1.) / 2.) * du.value
+    print("uv cell size", duvalue)
+    us = -1 * (np.arange(0, nx) - (nx - 1.) / 2.) * duvalue
+    vs = (np.arange(0, ny) - (ny - 1.) / 2.) * duvalue
     uus, vvs = np.meshgrid(us, vs)
     uvradss = np.sqrt(uus**2 + vvs**2)
     print("max uvrange: ", np.max(uvradss))
@@ -253,7 +235,7 @@ def xcorr(file_visSBs,
     w_L_polar = polarexpand(w_L)
     w_L_prof = np.median(w_L_polar, axis=1)
     nphis, nrs = w_L_polar.shape
-    uvrads = (np.arange(nrs)) * du.value
+    uvrads = (np.arange(nrs)) * duvalue
     plt.plot(uvrads, w_L_prof, label='w_L', color='C1')
     maskprof = ((w_L_prof > np.max(w_L_prof) / wprof_factor))
     #iw1=np.argmin(uvrads[maskprof])
