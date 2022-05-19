@@ -201,8 +201,8 @@ def xcorr(
     punch_vis(Vamp_L, du, outputdir + 'Vamp_L.fits')
     punch_vis(w_L, du, outputdir + 'w_L.fits')
 
-    #import PyVtools.Vtools as Vtools
-    #Vtools.View(w_L)
+    import PyVtools.Vtools as Vtools
+    Vtools.View(w_L)
 
     from scipy.signal import medfilt2d
 
@@ -211,7 +211,7 @@ def xcorr(
     wmedian = medfilt2d(w_L, kernel_size=kernel_w_L)
     print("wmedian:", wmedian)
     print("min_wL:", min_wL)
-    #Vtools.View(wmedian)
+    Vtools.View(wmedian)
     
     mask = ((w_L < wmedian / 2.) | (w_L < min_wL))
     V_L[mask] = 0
@@ -252,6 +252,7 @@ def xcorr(
     #Vtools.View(w_L)
                 
     w_L_polar = polarexpand(w_L)
+    #Vtools.View(w_L_polar)
     #w_L_prof = np.average(w_L_polar, axis=1)
     w_L_prof = np.median(w_L_polar, axis=1)
     nphis, nrs = w_L_polar.shape

@@ -107,20 +107,20 @@ def gridvis(file_ms,
     else:
         dirty = hdudirty.data
 
-    dirtyprep = np.fft.ifftshift(dirty)
-    VIB = np.fft.fft2(dirtyprep)
-    VIB = np.fft.fftshift(VIB)
-    VIB /= (nx * ny)
+    dirtyprep = np.fft.fftshift(dirty)
+    VIB = np.fft.ifft2(dirtyprep)
+    VIB = np.fft.ifftshift(VIB)
+    #VIB /= (nx * ny) << not required because of internal ifft norm
 
     norm_Wk = 1 / rmsnoise**2  # Sum_k W_k
     VIB *= norm_Wk
 
     #VIB = VIB.transpose()
 
-    psfprep = np.fft.ifftshift(psf)
-    wVIB = np.fft.fft2(psfprep)
-    wVIB = np.fft.fftshift(wVIB)
-    wVIB /= (nx * ny)
+    psfprep = np.fft.fftshift(psf)
+    wVIB = np.fft.ifft2(psfprep)
+    wVIB = np.fft.ifftshift(wVIB)
+    #wVIB /= (nx * ny)  << not required because of internal ifft norm
     wVIB *= norm_Wk
 
     VIB = VIB / wVIB
