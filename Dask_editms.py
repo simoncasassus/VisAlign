@@ -15,46 +15,66 @@ import dask.array as da
 from pyralysis.units import array_unit_conversion
 
 
-def apply_gain_shift(file_ms,
-                     file_ms_output='output_dask.ms',
-                     alpha_R=1.,
-                     Shift=False,
-                     file_ms_ref=False):
+def apply_gain_shift(*args, **kwargs):
+    apply(*args, **kwargs)
+
+
+def apply(
+        file_ms,
+        file_ms_output='output_dask.ms',
+        alpha_R=None,  # 1.
+        addPS=None,  # {'x0':0.,'y0':0.,'F':0},
+        Shift=None,
+        datacolumn='CORRECTED_DATA',  # DATA
+        datacolumns_output='CORRECTED_DATA',  # DATA
+        file_ms_ref=False):
 
     # file_ms_ref : reference ms for pointing
+    # Shift: apply shift, pass shift alpha , dec in arcsec
+    # addPS: add PS, pass position in arcsec offset from phase center, and flux in Jy
 
-    print("applying shift with alpha_R = ", alpha_R," Shift = ", Shift)
+    print("applying shift with alpha_R = ", alpha_R, " Shift = ", Shift)
     print("file_ms :", file_ms)
     print("file_ms_output :", file_ms_output)
     print(
         "building output ms structure by copying from filen_ms to file_ms_output"
     )
+    print("adding point sources", addPS)
 
     os.system("rm -rf " + file_ms_output)
-    os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
+    #os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
 
     reader = pyralysis.io.DaskMS(input_name=file_ms)
-    dataset = reader.read()
+    print("reading datacolumn",datacolumn)
+    dataset = reader.read(data_column=datacolumn)
+    print("done reading")
 
     field_dataset = dataset.field.dataset
 
-    delta_x = Shift[0] * np.pi / (180. * 3600.)
-    delta_y = Shift[1] * np.pi / (180. * 3600.)
-
-    for ms in dataset.ms_list:  # loops over spws
+    if Shift is not None:
+        delta_x = Shift[0] * np.pi / (180. * 3600.)
+        delta_y = Shift[1] * np.pi / (180. * 3600.)
+        print("will apply shifts ",deltax,deltay)
+        
+    for ims,ms in enumerate(dataset.ms_list):
+        print("looping over ms", ims)
         uvw = ms.visibilities.uvw.data
         spw_id = ms.spw_id
         pol_id = ms.polarization_id
         ncorrs = dataset.polarization.ncorrs[pol_id]
         nchans = dataset.spws.nchans[spw_id]
-
+        print("spw_id",spw_id,"nchans",nchans)
+        
         uvw_broadcast = da.tile(uvw, nchans).reshape((len(uvw), nchans, 3))
+        print("broadcasted uvw values to all channels")
 
+        print("dask .compute on channel frequencies")
         chans = dataset.spws.dataset[spw_id].CHAN_FREQ.data.squeeze(
             axis=0).compute() * un.Hz
-
+        print("done dask .compute")
+        
         chans_broadcast = chans[np.newaxis, :, np.newaxis]
-
+        print("broadcasted channels to same dimmensions as uvw")
         uvw_lambdas = uvw_broadcast / chans_broadcast.to(un.m, un.spectral())
 
         # uvw_lambdas = array_unit_conversion(
@@ -66,7 +86,7 @@ def apply_gain_shift(file_ms,
                                     uvw_lambdas,
                                     dtype=np.float64)
 
-        if Shift:
+        if Shift is not None:
             print("applying gain and shift")
             uus = uvw_lambdas[:, :, 0]
             vvs = uvw_lambdas[:, :, 1]
@@ -74,41 +94,75 @@ def apply_gain_shift(file_ms,
                 2j * np.pi *
                 (uus * delta_x + vvs * delta_y)).astype(np.complex64)
             ms.visibilities.data *= eulerphase[:, :, np.newaxis]
-        else:
+        elif alpha_R is not None:
             print("applying gain")
             ms.visibilities.data *= alpha_R
 
-    if file_ms_output:
-        print("PUNCH OUPUT MS")
-        if file_ms_ref:
-            print(
-                "paste pointing center from reference vis file into output vis file"
-            )
-            print("loading reference ms")
+        if addPS is not None:
+            for iPS, aPS in enumerate(addPS):
+                x0 = aPS['x0'] * np.pi / (180. * 3600.)
+                y0 = aPS['y0'] * np.pi / (180. * 3600.)
+                Flux = aPS['F']
+                print("adding PS: x0 ", x0, " y0 ", y0, "F", Flux)
+                uus = uvw_lambdas[:, :, 0]
+                vvs = uvw_lambdas[:, :, 1]
+                VisPS = Flux * da.exp(
+                    2j * np.pi * (uus * x0 + vvs * y0)).astype(np.complex64)
+                ms.visibilities.data += VisPS[:, :, np.newaxis]
 
-            ref_reader = pyralysis.io.DaskMS(input_name=file_ms_ref)
-            ref_dataset = ref_reader.read()
-            field_dataset = ref_dataset.field.dataset
+    if not os.path.isdir(file_ms_output):
+        os.system("rsync -va "+file_ms+"/  "+file_ms_output+"/")
 
-            if len(field_dataset) == len(dataset.field.dataset):
-                for i, row in enumerate(dataset.field.dataset):
-                    row['REFERENCE_DIR'] = field_dataset[i].REFERENCE_DIR
-                    row['PHASE_DIR'] = field_dataset[i].PHASE_DIR
-            else:
-                for i, row in enumerate(dataset.field.dataset):
-                    row['REFERENCE_DIR'] = field_dataset[0].REFERENCE_DIR
-                    row['PHASE_DIR'] = field_dataset[0].PHASE_DIR
+        
+    print("PUNCH OUPUT MS")
+    if file_ms_ref:
+        print(
+            "paste pointing center from reference vis file into output vis file"
+        )
+        print("loading reference ms")
 
-            # Write FIELD TABLE
-            print(" Write FIELD TABLE ")
-            reader.write_xarray_ds(dataset=dataset.field.dataset,
-                                   ms_name=file_ms_output,
-                                   table_name="FIELD")
-            # Write MAIN TABLE
-            print(" Write MAIN TABLE ")
-            reader.write(dataset=dataset,
-                         ms_name=file_ms_output,
-                         columns="DATA")
+        ref_reader = pyralysis.io.DaskMS(input_name=file_ms_ref)
+        ref_dataset = ref_reader.read()
+        field_dataset = ref_dataset.field.dataset
+
+        if len(field_dataset) == len(dataset.field.dataset):
+           dataset.field.dataset = field_dataset
+
+           print("field_dataset[0].REFERENCE_DIR",field_dataset[0].REFERENCE_DIR.compute())
+           print("field_dataset[0].PHASE_DIR",field_dataset[0].PHASE_DIR.compute())
+        else:
+            for i, row in enumerate(dataset.field.dataset):
+                row['REFERENCE_DIR'] = field_dataset[0].REFERENCE_DIR
+                row['PHASE_DIR'] = field_dataset[0].PHASE_DIR
+        
+        if os.path.exists(file_ms_output):
+            print("The output file exists")
+        else:
+            print("The output file does not exists!")
+
+        # Write FIELD TABLE
+        print("Write FIELD TABLE ")
+        print("Changed REFERENCE_DIR", dataset.field.dataset[0].REFERENCE_DIR.compute())
+        print("Changed PHASE_DIR", dataset.field.dataset[0].PHASE_DIR.compute())
+        reader.write_xarray_ds(dataset=dataset.field.dataset,
+                               ms_name=file_ms_output,
+                               columns=['REFERENCE_DIR','PHASE_DIR'],
+                               table_name="FIELD")
+    # Write MAIN TABLE
+    print("Write MAIN TABLE ", datacolumns_output)
+    reader.write(dataset=dataset,
+                 ms_name=file_ms_output,
+                 columns=datacolumns_output)
+
+
+    #X-check pointing
+
+    check_reader = pyralysis.io.DaskMS(input_name=file_ms_output)
+    check_dataset = check_reader.read()
+    field_dataset = check_dataset.field.dataset
+    for i, row in enumerate(field_dataset):
+        print("output REFERENCE_DIR",row.REFERENCE_DIR.compute())
+        print("output PHASE_DIR",row.PHASE_DIR.compute())
 
     return
 

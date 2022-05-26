@@ -34,6 +34,8 @@ def gridvis(file_ms,
 
     # du = (1/(imsize*dx)).to(u.lambdas, equivalencies=lambdas_equivalencies())
 
+    print("imsize",imsize)
+
     gridder = Gridder(imsize=imsize,
                       cellsize=dx,
                       padding_factor=1.0,
