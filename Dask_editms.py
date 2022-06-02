@@ -5,6 +5,10 @@ import numpy as np
 # from astropy.io import fits
 # from astropy.units import Quantity
 
+import dask.multiprocessing
+
+#dask.config.set(scheduler=dask.multiprocessing.get)
+
 import pyralysis
 import pyralysis.io
 # from pyralysis.transformers.weighting_schemes import Robust
@@ -13,7 +17,6 @@ import astropy.units as un
 import dask.array as da
 
 from pyralysis.units import array_unit_conversion
-
 
 def apply_gain_shift(*args, **kwargs):
     apply(*args, **kwargs)
@@ -46,7 +49,7 @@ def apply(
 
     reader = pyralysis.io.DaskMS(input_name=file_ms)
     print("reading datacolumn",datacolumn)
-    dataset = reader.read(data_column=datacolumn)
+    dataset = reader.read(data_column=datacolumn,calculate_psf=False)
     print("done reading")
 
     field_dataset = dataset.field.dataset
@@ -54,7 +57,7 @@ def apply(
     if Shift is not None:
         delta_x = Shift[0] * np.pi / (180. * 3600.)
         delta_y = Shift[1] * np.pi / (180. * 3600.)
-        print("will apply shifts ",deltax,deltay)
+        print("will apply shifts ",delta_x,delta_y)
         
     for ims,ms in enumerate(dataset.ms_list):
         print("looping over ms", ims)
@@ -128,8 +131,8 @@ def apply(
         if len(field_dataset) == len(dataset.field.dataset):
            dataset.field.dataset = field_dataset
 
-           print("field_dataset[0].REFERENCE_DIR",field_dataset[0].REFERENCE_DIR.compute())
-           print("field_dataset[0].PHASE_DIR",field_dataset[0].PHASE_DIR.compute())
+           #print("field_dataset[0].REFERENCE_DIR",field_dataset[0].REFERENCE_DIR.compute())
+           #print("field_dataset[0].PHASE_DIR",field_dataset[0].PHASE_DIR.compute())
         else:
             for i, row in enumerate(dataset.field.dataset):
                 row['REFERENCE_DIR'] = field_dataset[0].REFERENCE_DIR
@@ -142,8 +145,8 @@ def apply(
 
         # Write FIELD TABLE
         print("Write FIELD TABLE ")
-        print("Changed REFERENCE_DIR", dataset.field.dataset[0].REFERENCE_DIR.compute())
-        print("Changed PHASE_DIR", dataset.field.dataset[0].PHASE_DIR.compute())
+        #print("Changed REFERENCE_DIR", dataset.field.dataset[0].REFERENCE_DIR.compute())
+        #print("Changed PHASE_DIR", dataset.field.dataset[0].PHASE_DIR.compute())
         reader.write_xarray_ds(dataset=dataset.field.dataset,
                                ms_name=file_ms_output,
                                columns=['REFERENCE_DIR','PHASE_DIR'],

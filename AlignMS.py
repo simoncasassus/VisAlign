@@ -250,12 +250,14 @@ def xcorr(
     import matplotlib.pyplot as plt
 
     #Vtools.View(w_L)
-                
+
+    print("polarexpand w_L")
     w_L_polar = polarexpand(w_L)
     #w_L_prof = np.average(w_L_polar, axis=1)
     w_L_prof = np.median(w_L_polar, axis=1)
     nphis, nrs = w_L_polar.shape
     uvrads = (np.arange(nrs)) * duvalue
+    print("plotting w_L")
     plt.plot(uvrads, w_L_prof, label='w_L', color='C1')
     maskprof = ((w_L_prof > np.max(w_L_prof) / wprof_factor))
 
@@ -264,9 +266,11 @@ def xcorr(
     uvmin_L = np.min(uvrads[maskprof])
     uvmax_L = np.max(uvrads[maskprof])
 
+    print("polarexpand w_S")
     w_S_polar = polarexpand(w_S)
     #w_S_prof = np.average(w_S_polar, axis=1)
     w_S_prof = np.median(w_S_polar, axis=1)
+    print("plotting w_S")
     plt.plot(uvrads, w_S_prof, label='w_S', color='C0')
     maskprof = ((w_S_prof > np.max(w_S_prof) / wprof_factor))
     #iw1=np.argmin(uvrads[maskprof])
