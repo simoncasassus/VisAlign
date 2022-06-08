@@ -46,7 +46,7 @@ def gridvis(file_ms,
                                imsize=imsize,
                                padding_factor=1.0,
                                cellsize=dx,
-                               stokes="I,Q",
+                               stokes="I", # "I,Q"
                                hermitian_symmetry=False)
 
     dirty_images_natural = dirty_mapper.transform()
