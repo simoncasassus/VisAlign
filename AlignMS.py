@@ -112,7 +112,7 @@ def xcorr(
 
     if Grid:
         if (GridScheme == 'Pyra'):
-            file_dirty = 'dirty_' + os.path.basename(file_visSBs) + '.fits'
+            file_dirty = outputdir+'dirty_' + os.path.basename(file_visSBs) + '.fits'
             import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, SBs_gridded_visibilities_nat, SBs_gridded_weights_nat = Pyra_grid.gridvis(
@@ -122,7 +122,7 @@ def xcorr(
             duvalue = du.value
         elif (GridScheme == 'tclean'):
             import Tclean_grid
-            file_dirty = 'dirty_' + os.path.basename(file_visSBs)
+            file_dirty = outputdir+'dirty_' + os.path.basename(file_visSBs)
             dx, SBs_gridded_visibilities_nat, SBs_gridded_weights_nat = Tclean_grid.gridvis(
                 file_visSBs,
                 imsize=imsize,

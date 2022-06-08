@@ -9,6 +9,7 @@ def gridvis(file_ms,
             imsize=2048,
             hermitian_symmetry=False,
             dx=None,
+            wantpsf=False,
             wantdirtymap=False):
 
     print("processing: ", file_ms)
@@ -34,7 +35,7 @@ def gridvis(file_ms,
 
     # du = (1/(imsize*dx)).to(u.lambdas, equivalencies=lambdas_equivalencies())
 
-    print("imsize",imsize)
+    print("imsize", imsize)
 
     gridder = Gridder(imsize=imsize,
                       cellsize=dx,
@@ -53,9 +54,14 @@ def gridvis(file_ms,
     gridded_weights_nat = dirty_mapper.uvgridded_weights.compute()
 
     if wantdirtymap:
-        dirty_image_natural = dirty_images_natural[0].data[0].compute()
-        dirty_beam_natural = dirty_images_natural[1].data[0].compute()
+        #dirty_image_natural = dirty_images_natural[0].data[0].compute()
         fits_io = FITS()
+        print("punching dirty map ", wantdirtymap)
         fits_io.write(dirty_images_natural[0].data, output_name=wantdirtymap)
+    if wantpsf:
+        #dirty_beam_natural = dirty_images_natural[1].data[0].compute()
+        fits_io = FITS()
+        print("punching dirty beam ", wantpsf)
+        fits_io.write(dirty_images_natural[1].data, output_name=wantpsf)
 
     return dx, gridded_visibilities_nat, gridded_weights_nat
