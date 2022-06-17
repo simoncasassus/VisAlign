@@ -44,3 +44,4 @@ tclean(
 
 exportfits(imagename=imagename + ".image", fitsimage=imagename + ".image.fits")
 exportfits(imagename=imagename + ".psf", fitsimage=imagename + ".psf.fits")
+

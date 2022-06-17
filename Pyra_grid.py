@@ -1,13 +1,46 @@
 from pyralysis.io import DaskMS
+import numpy as np
 import astropy.units as u
 from pyralysis.transformers import Gridder, HermitianSymmetry, DirtyMapper
 from pyralysis.io import FITS
 from astropy.units import Quantity
 
 
+def completeuvplane_complex(V_half):
+    V_half = np.squeeze(V_half)
+    nu, nv = V_half.shape
+    Nside = max(nu, nv)
+    V_full = np.zeros((Nside, Nside)).astype(complex)
+    V_full[:, int(Nside/2):] = V_half[:, 0:int(Nside/2)]
+    Vmatrix = np.matrix(V_full)
+    V_H = Vmatrix.getH()
+    V_H = np.asarray(V_H)
+    V_H = np.flip(V_H, 0)
+    V_H = np.rot90(V_H)
+    V_full[:, 0:int(Nside/2)] = V_H[:, 0:int(Nside/2)]
+    #V_full_R = V_full.real
+    #V_full_I = V_full.imag
+    #V_full_amp = V_full_R**2 + V_full_I**2
+    #print(V_full_amp.shape)
+    #Vtools.View(V_full_amp)
+    return V_full
+
+def completeuvplane(V_half):
+    V_half = np.squeeze(V_half)
+    nu, nv = V_half.shape
+    Nside = max(nu, nv)
+    V_full = np.zeros((Nside, Nside))
+    V_full[:, int(Nside/2):] = V_half[:, 0:int(Nside/2)]
+    V_H = V_full.transpose()
+    V_H = np.flip(V_H, 0)
+    V_H = np.rot90(V_H)
+    V_full[:, 0:int(Nside/2)] = V_H[:, 0:int(Nside/2)]
+    return V_full
+
+
 def gridvis(file_ms,
             imsize=2048,
-            hermitian_symmetry=False,
+            hermitian_symmetry=True,
             dx=None,
             wantpsf=False,
             wantdirtymap=False):
@@ -42,16 +75,20 @@ def gridvis(file_ms,
                       padding_factor=1.0,
                       hermitian_symmetry=hermitian_symmetry)
 
-    dirty_mapper = DirtyMapper(input_data=dataset,
-                               imsize=imsize,
-                               padding_factor=1.0,
-                               cellsize=dx,
-                               stokes="I", # "I,Q"
-                               hermitian_symmetry=False)
+    dirty_mapper = DirtyMapper(
+        input_data=dataset,
+        imsize=imsize,
+        padding_factor=1.0,
+        cellsize=dx,
+        stokes="I",  # "I,Q"
+        hermitian_symmetry=hermitian_symmetry)
 
     dirty_images_natural = dirty_mapper.transform()
-    gridded_visibilities_nat = dirty_mapper.uvgridded_visibilities.compute()
-    gridded_weights_nat = dirty_mapper.uvgridded_weights.compute()
+    gridded_visibilities_nat = np.squeeze(dirty_mapper.uvgridded_visibilities.compute())
+    gridded_weights_nat = np.squeeze(dirty_mapper.uvgridded_weights.compute())
+    if hermitian_symmetry:
+        gridded_visibilities_nat = completeuvplane_complex(gridded_visibilities_nat)
+        gridded_weights_nat = completeuvplane(gridded_weights_nat)
 
     if wantdirtymap:
         #dirty_image_natural = dirty_images_natural[0].data[0].compute()
