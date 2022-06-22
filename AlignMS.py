@@ -170,25 +170,25 @@ def xcorr(
     print(SBs_gridded_visibilities_nat.dtype)
     print(SBs_gridded_weights_nat.shape)
 
-    if GridScheme == 'Pyra':
-        V_S = SBs_gridded_visibilities_nat[0, :, :]
-        V_SR = SBs_gridded_visibilities_nat[0, :, :].real
-        V_SI = SBs_gridded_visibilities_nat[0, :, :].imag
-        V_L = LBs_gridded_visibilities_nat[0, :, :]
-        V_LR = LBs_gridded_visibilities_nat[0, :, :].real
-        V_LI = LBs_gridded_visibilities_nat[0, :, :].imag
-        w_S = SBs_gridded_weights_nat[0, :, :]
-        w_L = LBs_gridded_weights_nat[0, :, :]
-    else:
-        V_S = SBs_gridded_visibilities_nat
-        V_SR = SBs_gridded_visibilities_nat.real
-        V_SI = SBs_gridded_visibilities_nat.imag
-        V_L = LBs_gridded_visibilities_nat
-        V_LR = LBs_gridded_visibilities_nat.real
-        V_LI = LBs_gridded_visibilities_nat.imag
-        w_S = SBs_gridded_weights_nat
-        w_L = LBs_gridded_weights_nat
-
+    #if GridScheme == 'Pyra':
+    #    V_S = SBs_gridded_visibilities_nat[ :, :]
+    #    V_SR = SBs_gridded_visibilities_nat[ :, :].real
+    #    V_SI = SBs_gridded_visibilities_nat[ :, :].imag
+    #    V_L = LBs_gridded_visibilities_nat[ :, :]
+    #    V_LR = LBs_gridded_visibilities_nat[ :, :].real
+    #    V_LI = LBs_gridded_visibilities_nat[ :, :].imag
+    #    w_S = SBs_gridded_weights_nat[ :, :]
+    #    w_L = LBs_gridded_weights_nat[ :, :]
+    #else:
+    V_S = SBs_gridded_visibilities_nat
+    V_SR = SBs_gridded_visibilities_nat.real
+    V_SI = SBs_gridded_visibilities_nat.imag
+    V_L = LBs_gridded_visibilities_nat
+    V_LR = LBs_gridded_visibilities_nat.real
+    V_LI = LBs_gridded_visibilities_nat.imag
+    w_S = SBs_gridded_weights_nat
+    w_L = LBs_gridded_weights_nat
+    
     Vamp_S = np.sqrt(V_SI**2 + V_SR**2)
     punch_vis(V_SR, du, outputdir + 'V_SR.fits')
     punch_vis(V_SI, du, outputdir + 'V_SI.fits')
