@@ -89,6 +89,8 @@ def xcorr(
         dx,
         imsize,
         GridScheme='Pyra',  # 'tclean'
+        FWHM_apod=6.,
+        DoApod=True,
         Grid=True,
         Grid_LBs=True,
         uvrange=False,
@@ -96,8 +98,9 @@ def xcorr(
         DoMinos=False,
         kernel_w_L=5,
         kernel_w_S=5,
+        FilterWeights=True,
         wprof_factor=10.,
-        min_wS=100.,
+        min_wS=100.,  # (mJy**-2)
         min_wL=100.,
         outputdir='output_xcorr/'):
     nx = imsize
@@ -112,7 +115,8 @@ def xcorr(
 
     if Grid:
         if (GridScheme == 'Pyra'):
-            file_dirty = outputdir+'dirty_' + os.path.basename(file_visSBs) + '.fits'
+            file_dirty = outputdir + 'dirty_' + os.path.basename(
+                file_visSBs) + '.fits'
             import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, SBs_gridded_visibilities_nat, SBs_gridded_weights_nat = Pyra_grid.gridvis(
@@ -122,13 +126,18 @@ def xcorr(
             duvalue = du.value
         elif (GridScheme == 'tclean'):
             import Tclean_grid
-            file_dirty = outputdir+'dirty_' + os.path.basename(file_visSBs)
+            file_dirty = outputdir + 'dirty_' + os.path.basename(file_visSBs)
             dx, SBs_gridded_visibilities_nat, SBs_gridded_weights_nat = Tclean_grid.gridvis(
                 file_visSBs,
                 imsize=imsize,
                 tcleanimagename=file_dirty,
                 dx=dx,
+                FWHM_apod=FWHM_apod,
+                DoApod=DoApod,
                 outputdir=outputdir)
+        else:
+            print("set GridScheme  to either tclean or Pyra")
+            raise ValueError("set GridScheme  to either tclean or Pyra")
 
         np.save(file_gridded_vis_SBs, SBs_gridded_visibilities_nat)
         np.save(file_gridded_weights_SBs, SBs_gridded_weights_nat)
@@ -159,7 +168,7 @@ def xcorr(
 
     du = (1 / (imsize * dx.to(u.rad).value))
     duvalue = du
-    
+
     SBs_gridded_visibilities_nat = np.load(file_gridded_vis_SBs)
     SBs_gridded_weights_nat = np.load(file_gridded_weights_SBs)
     LBs_gridded_visibilities_nat = np.load(file_gridded_vis_LBs)
@@ -188,7 +197,7 @@ def xcorr(
     V_LI = LBs_gridded_visibilities_nat.imag
     w_S = SBs_gridded_weights_nat
     w_L = LBs_gridded_weights_nat
-    
+
     Vamp_S = np.sqrt(V_SI**2 + V_SR**2)
     punch_vis(V_SR, du, outputdir + 'V_SR.fits')
     punch_vis(V_SI, du, outputdir + 'V_SI.fits')
@@ -206,28 +215,23 @@ def xcorr(
 
     from scipy.signal import medfilt2d
 
-    print('filtering V_L')
-    # wmedian = np.median(w_L[(w_L > 0.)])
-    wmedian = medfilt2d(w_L, kernel_size=kernel_w_L)
-    print("wmedian:", wmedian)
-    print("min_wL:", min_wL)
-    #Vtools.View(wmedian)
-    
-    mask = ((w_L < wmedian / 2.) | (w_L < min_wL))
-    V_L[mask] = 0
-    V_LR[mask] = 0.
-    V_LI[mask] = 0.
-    w_L[mask] = 0.
+    if FilterWeights:
+        print('filtering V_L')
+        wmedian = medfilt2d(w_L, kernel_size=kernel_w_L)
+        #Vtools.View(wmedian)
+        mask = ((w_L < wmedian / 2.) | (w_L < min_wL))
+        V_L[mask] = 0
+        V_LR[mask] = 0.
+        V_LI[mask] = 0.
+        w_L[mask] = 0.
 
-    print('filtering V_S')
-    #wmedian = np.median(w_S[(w_S > 0.)])
-    wmedian = medfilt2d(w_S, kernel_size=kernel_w_S)
-    #print("wmedian:", wmedian)
-    mask = ((w_S < wmedian / 2.) | (w_S < min_wS))
-    V_S[mask] = 0
-    V_SR[mask] = 0.
-    V_SI[mask] = 0.
-    w_S[mask] = 0.
+        print('filtering V_S')
+        wmedian = medfilt2d(w_S, kernel_size=kernel_w_S)
+        mask = ((w_S < wmedian / 2.) | (w_S < min_wS))
+        V_S[mask] = 0
+        V_SR[mask] = 0.
+        V_SI[mask] = 0.
+        w_S[mask] = 0.
 
     w = w_L * w_S / (w_L + w_S)
     w[(w_L < min_wL) | (w_S < min_wS)] = 0.
@@ -237,7 +241,6 @@ def xcorr(
     V_L = np.nan_to_num(V_L)
     dofs = np.sum((w > 0.))
     print("dofs = ", dofs)
-
 
     print("uv cell size", duvalue)
     us = -1 * (np.arange(0, nx) - (nx - 1.) / 2.) * duvalue
@@ -355,8 +358,8 @@ def xcorr(
     Fix_alpha_R = False
     f = lambda alpha_R, delta_x, delta_y: chi2(V_S_wfilt, V_L_wfilt, w, uus,
                                                vvs, alpha_R, delta_x, delta_y)
-    m = Minuit(f, alpha_R=alpha_R, delta_x=0., delta_y=0.)
-    # m = Minuit(f, alpha_R=1., delta_x=0., delta_y=0.)
+    #m = Minuit(f, alpha_R=alpha_R, delta_x=0., delta_y=0.)
+    m = Minuit(f, alpha_R=1., delta_x=0., delta_y=0.)
 
     m.tol = 1e-4
 
@@ -425,12 +428,10 @@ def xcorr(
 
     punch_vis(w, du, outputdir + 'w.fits')
 
-
     punch_vis(V_SR_wfilt, du, outputdir + 'V_SR_wfilt.fits')
     punch_vis(V_SI_wfilt, du, outputdir + 'V_SI_wfilt.fits')
     punch_vis(Vamp_S_wfilt, du, outputdir + 'Vamp_S_wfilt.fits')
     punch_vis(w, du, outputdir + 'w_S_wfilt.fits')
-
 
     punch_vis(V_LR_wfilt, du, outputdir + 'V_LR_wfilt.fits')
     punch_vis(V_LI_wfilt, du, outputdir + 'V_LI_wfilt.fits')

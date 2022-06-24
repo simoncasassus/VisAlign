@@ -79,6 +79,7 @@ def gridvis(
         dx=None,
         outputdir='',
         FWHM_apod=3.,  # arcsec
+        DoApod=True,
         tcleanimagename=False):
 
     gendirty(file_ms,
@@ -93,7 +94,7 @@ def gridvis(
         file_psf=outputdir + 'dirty_tclean_' + os.path.basename(file_ms) +
         '.psf.fits',
         rmsnoise=rmsnoise,  # Jy/beam noise
-        DoApod=True,
+        DoApod=DoApod,
         outputdir=outputdir,
         FWHM_apod=FWHM_apod)
 
