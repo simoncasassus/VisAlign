@@ -621,12 +621,8 @@ def exec_summary(
     return
 
 
-msname = 'PDS70_IB17_cont_copy_chi2_casarestore_2inf.ms.selfcal.statwt'
-outputdir = './gridding_trials_hermit_5/'
-
-#outputdir = './gridding_trials_residuals_nohermit/'
-#outputdir = './gridding_trials_residuals/'
-#msname = '_ph0_residuals.data.ms'
+outputdir = './gridding_trials/'
+msname = 'HD97048_SB21_cont_refact_p0_p1_p2.ms.selfcal'
 
 
 fileout = outputdir + 'fig_powerimages_trials.pdf'
