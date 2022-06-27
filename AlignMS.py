@@ -84,15 +84,15 @@ def chi2(V_S, V_L, w, uus, vvs, alpha_R, delta_x, delta_y):
 
 
 def xcorr(
-        file_visSBs,
-        file_visLBs,
+        file_visAset,
+        file_visBset, # reference visibility dataset
         dx,
         imsize,
         GridScheme='Pyra',  # 'tclean'
         FWHM_apod=6.,
         DoApod=True,
         Grid=True,
-        Grid_LBs=True,
+        Grid_Bset=True,
         uvrange=False,
         DefaultUvrange=False,
         DoMinos=False,
@@ -108,27 +108,27 @@ def xcorr(
 
     os.system('mkdir ' + outputdir)
 
-    file_gridded_vis_SBs = outputdir + 'SBs_aligned_gridded_visibilities_nat.npy'
-    file_gridded_weights_SBs = outputdir + 'SBs_aligned_gridded_weights_nat.npy'
-    file_gridded_vis_LBs = outputdir + 'LBs_gridded_visibilities_nat.npy'
-    file_gridded_weights_LBs = outputdir + 'LBs_gridded_weights_nat.npy'
+    file_gridded_vis_Aset = outputdir + 'Aset_aligned_gridded_visibilities_nat.npy'
+    file_gridded_weights_Aset = outputdir + 'Aset_aligned_gridded_weights_nat.npy'
+    file_gridded_vis_Bset = outputdir + 'Bset_gridded_visibilities_nat.npy'
+    file_gridded_weights_Bset = outputdir + 'Bset_gridded_weights_nat.npy'
 
     if Grid:
         if (GridScheme == 'Pyra'):
             file_dirty = outputdir + 'dirty_' + os.path.basename(
-                file_visSBs) + '.fits'
+                file_visAset) + '.fits'
             import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
-            dx, SBs_gridded_visibilities_nat, SBs_gridded_weights_nat = Pyra_grid.gridvis(
-                file_visSBs, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
+            dx, Aset_gridded_visibilities_nat, Aset_gridded_weights_nat = Pyra_grid.gridvis(
+                file_visAset, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
             du = (1 / (imsize * dx)).to(u.lambdas,
                                         equivalencies=lambdas_equivalencies())
             duvalue = du.value
         elif (GridScheme == 'tclean'):
             import Tclean_grid
-            file_dirty = outputdir + 'dirty_' + os.path.basename(file_visSBs)
-            dx, SBs_gridded_visibilities_nat, SBs_gridded_weights_nat = Tclean_grid.gridvis(
-                file_visSBs,
+            file_dirty = outputdir + 'dirty_' + os.path.basename(file_visAset)
+            dx, Aset_gridded_visibilities_nat, Aset_gridded_weights_nat = Tclean_grid.gridvis(
+                file_visAset,
                 imsize=imsize,
                 tcleanimagename=file_dirty,
                 dx=dx,
@@ -139,64 +139,64 @@ def xcorr(
             print("set GridScheme  to either tclean or Pyra")
             raise ValueError("set GridScheme  to either tclean or Pyra")
 
-        np.save(file_gridded_vis_SBs, SBs_gridded_visibilities_nat)
-        np.save(file_gridded_weights_SBs, SBs_gridded_weights_nat)
+        np.save(file_gridded_vis_Aset, Aset_gridded_visibilities_nat)
+        np.save(file_gridded_weights_Aset, Aset_gridded_weights_nat)
         print("sky image pixels: ", dx.to(u.arcsec))
 
-    if Grid_LBs:
+    if Grid_Bset:
         if (GridScheme == 'Pyra'):
-            file_dirty = 'dirty_' + os.path.basename(file_visLBs) + '.fits'
+            file_dirty = 'dirty_' + os.path.basename(file_visBset) + '.fits'
             import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
-            dx, LBs_gridded_visibilities_nat, LBs_gridded_weights_nat = Pyra_grid.gridvis(
-                file_visLBs, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
+            dx, Bset_gridded_visibilities_nat, Bset_gridded_weights_nat = Pyra_grid.gridvis(
+                file_visBset, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
             du = (1 / (imsize * dx)).to(u.lambdas,
                                         equivalencies=lambdas_equivalencies())
             duvalue = du.value
         elif (GridScheme == 'tclean'):
             import Tclean_grid
-            file_dirty = 'dirty_' + os.path.basename(file_visSBs)
-            dx, LBs_gridded_visibilities_nat, LBs_gridded_weights_nat = Tclean_grid.gridvis(
-                file_visLBs,
+            file_dirty = 'dirty_' + os.path.basename(file_visAset)
+            dx, Bset_gridded_visibilities_nat, Bset_gridded_weights_nat = Tclean_grid.gridvis(
+                file_visBset,
                 imsize=imsize,
                 tcleanimagename=file_dirty,
                 dx=dx,
                 outputdir=outputdir)
 
-        np.save(file_gridded_vis_LBs, LBs_gridded_visibilities_nat)
-        np.save(file_gridded_weights_LBs, LBs_gridded_weights_nat)
+        np.save(file_gridded_vis_Bset, Bset_gridded_visibilities_nat)
+        np.save(file_gridded_weights_Bset, Bset_gridded_weights_nat)
 
     du = (1 / (imsize * dx.to(u.rad).value))
     duvalue = du
 
-    SBs_gridded_visibilities_nat = np.load(file_gridded_vis_SBs)
-    SBs_gridded_weights_nat = np.load(file_gridded_weights_SBs)
-    LBs_gridded_visibilities_nat = np.load(file_gridded_vis_LBs)
-    LBs_gridded_weights_nat = np.load(file_gridded_weights_LBs)
+    Aset_gridded_visibilities_nat = np.load(file_gridded_vis_Aset)
+    Aset_gridded_weights_nat = np.load(file_gridded_weights_Aset)
+    Bset_gridded_visibilities_nat = np.load(file_gridded_vis_Bset)
+    Bset_gridded_weights_nat = np.load(file_gridded_weights_Bset)
 
-    print("SBs_gridded_visibilities_nat.shape",
-          SBs_gridded_visibilities_nat.shape)
-    print(SBs_gridded_visibilities_nat.dtype)
-    print(SBs_gridded_weights_nat.shape)
+    print("Aset_gridded_visibilities_nat.shape",
+          Aset_gridded_visibilities_nat.shape)
+    print(Aset_gridded_visibilities_nat.dtype)
+    print(Aset_gridded_weights_nat.shape)
 
     #if GridScheme == 'Pyra':
-    #    V_S = SBs_gridded_visibilities_nat[ :, :]
-    #    V_SR = SBs_gridded_visibilities_nat[ :, :].real
-    #    V_SI = SBs_gridded_visibilities_nat[ :, :].imag
-    #    V_L = LBs_gridded_visibilities_nat[ :, :]
-    #    V_LR = LBs_gridded_visibilities_nat[ :, :].real
-    #    V_LI = LBs_gridded_visibilities_nat[ :, :].imag
-    #    w_S = SBs_gridded_weights_nat[ :, :]
-    #    w_L = LBs_gridded_weights_nat[ :, :]
+    #    V_S = Aset_gridded_visibilities_nat[ :, :]
+    #    V_SR = Aset_gridded_visibilities_nat[ :, :].real
+    #    V_SI = Aset_gridded_visibilities_nat[ :, :].imag
+    #    V_L = Bset_gridded_visibilities_nat[ :, :]
+    #    V_LR = Bset_gridded_visibilities_nat[ :, :].real
+    #    V_LI = Bset_gridded_visibilities_nat[ :, :].imag
+    #    w_S = Aset_gridded_weights_nat[ :, :]
+    #    w_L = Bset_gridded_weights_nat[ :, :]
     #else:
-    V_S = SBs_gridded_visibilities_nat
-    V_SR = SBs_gridded_visibilities_nat.real
-    V_SI = SBs_gridded_visibilities_nat.imag
-    V_L = LBs_gridded_visibilities_nat
-    V_LR = LBs_gridded_visibilities_nat.real
-    V_LI = LBs_gridded_visibilities_nat.imag
-    w_S = SBs_gridded_weights_nat
-    w_L = LBs_gridded_weights_nat
+    V_S = Aset_gridded_visibilities_nat
+    V_SR = Aset_gridded_visibilities_nat.real
+    V_SI = Aset_gridded_visibilities_nat.imag
+    V_L = Bset_gridded_visibilities_nat
+    V_LR = Bset_gridded_visibilities_nat.real
+    V_LI = Bset_gridded_visibilities_nat.imag
+    w_S = Aset_gridded_weights_nat
+    w_L = Bset_gridded_weights_nat
 
     Vamp_S = np.sqrt(V_SI**2 + V_SR**2)
     punch_vis(V_SR, du, outputdir + 'V_SR.fits')
@@ -439,17 +439,17 @@ def xcorr(
     punch_vis(w, du, outputdir + 'w_L_wfilt.fits')
 
 
-#file_visSBs = 'PDS70_SB16_cont_chi2_casarestore.ms.selfcal.statwt'
-#file_visLBs = 'PDS70_cont_copy_verylowS_casarestore.ms.selfcal.statwt'
-#dx = 0.004 * u.arcsec  #LBs
+#file_visAset = 'PDS70_SB16_cont_chi2_casarestore.ms.selfcal.statwt'
+#file_visBset = 'PDS70_cont_copy_verylowS_casarestore.ms.selfcal.statwt'
+#dx = 0.004 * u.arcsec  #Bset
 #imsize = 2048
 #
-#xcorr(file_visSBs,
-#      file_visLBs,
+#xcorr(file_visAset ,
+#      file_visBset,
 #      dx,
 #      imsize,
 #      Grid=True,
-#      Grid_LBs=True,
+#      Grid_Bset=True,
 #      outputdir='output_xcorr/')
 #
 #
