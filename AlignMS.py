@@ -62,19 +62,19 @@ def punch_vis(im, duvalue, fileout, CRPIX1=1., CRPIX2=1.):
     hdu.writeto(fileout, overwrite=True)
 
 
-def shiftvis(V_S, uus, vvs, alpha_R, delta_x, delta_y):
+def shiftvis(V_Aset, uus, vvs, alpha_R, delta_x, delta_y):
     argphase = 2. * np.pi * (uus * (delta_x * np.pi / (180. * 3600.)) + vvs *
                              (delta_y * np.pi / (180. * 3600.)))
     # eulerphase = np.cos(argphase)+1j*np.sin(argphase)
     eulerphase = np.exp(1j * argphase)
 
-    V_L_m = alpha_R * V_S * eulerphase
-    return V_L_m
+    V_Bset_m = alpha_R * V_Aset * eulerphase
+    return V_Bset_m
 
 
-def chi2(V_S, V_L, w, uus, vvs, alpha_R, delta_x, delta_y):
-    V_L_m = shiftvis(V_S, uus, vvs, alpha_R, delta_x, delta_y)
-    diff = V_L - V_L_m
+def chi2(V_Aset, V_Bset, w, uus, vvs, alpha_R, delta_x, delta_y):
+    V_Bset_m = shiftvis(V_Aset, uus, vvs, alpha_R, delta_x, delta_y)
+    diff = V_Bset - V_Bset_m
     squarediff = (diff.real**2) + (diff.imag**2)
     retval = np.sum(w * squarediff)
     if np.isnan(retval):
@@ -83,9 +83,21 @@ def chi2(V_S, V_L, w, uus, vvs, alpha_R, delta_x, delta_y):
     return retval
 
 
+def chi2DERRS(V_Aset, V_Bset, varA, varB, uus, vvs, alpha_R, delta_x, delta_y):
+    V_Bset_m = shiftvis(V_Aset, uus, vvs, alpha_R, delta_x, delta_y)
+    diff = V_Bset - V_Bset_m
+    squarediff = (diff.real**2) + (diff.imag**2)
+    weights = varB + alpha_R**2 * varA
+    retval = np.sum(squarediff / weights)
+    if np.isnan(retval):
+        print("chi2 is NaN")
+        retval = np.inf
+    return retval
+
+
 def xcorr(
         file_visAset,
-        file_visBset, # reference visibility dataset
+        file_visBset,  # reference visibility dataset
         dx,
         imsize,
         GridScheme='Pyra',  # 'tclean'
@@ -93,19 +105,22 @@ def xcorr(
         DoApod=True,
         Grid=True,
         Grid_Bset=True,
-        uvrange=False,
+        uvrange=None,
         DefaultUvrange=False,
         DoMinos=False,
-        kernel_w_L=5,
-        kernel_w_S=5,
+        kernel_w_Bset=5,
+        kernel_w_Aset=5,
         FilterWeights=True,
         wprof_factor=10.,
-        min_wS=100.,  # (mJy**-2)
-        min_wL=100.,
+        min_wA=100.,  # (mJy**-2)
+        min_wB=100.,
         outputdir='output_xcorr/'):
     nx = imsize
     ny = imsize
 
+    if DefaultUvrange:
+        uvrange=None
+        
     os.system('mkdir ' + outputdir)
 
     file_gridded_vis_Aset = outputdir + 'Aset_aligned_gridded_visibilities_nat.npy'
@@ -145,7 +160,8 @@ def xcorr(
 
     if Grid_Bset:
         if (GridScheme == 'Pyra'):
-            file_dirty = 'dirty_' + os.path.basename(file_visBset) + '.fits'
+            file_dirty = outputdir + 'dirty_' + os.path.basename(
+                file_visBset) + '.fits'
             import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, Bset_gridded_visibilities_nat, Bset_gridded_weights_nat = Pyra_grid.gridvis(
@@ -155,7 +171,7 @@ def xcorr(
             duvalue = du.value
         elif (GridScheme == 'tclean'):
             import Tclean_grid
-            file_dirty = 'dirty_' + os.path.basename(file_visAset)
+            file_dirty = outputdir + 'dirty_' + os.path.basename(file_visAset)
             dx, Bset_gridded_visibilities_nat, Bset_gridded_weights_nat = Tclean_grid.gridvis(
                 file_visBset,
                 imsize=imsize,
@@ -180,66 +196,77 @@ def xcorr(
     print(Aset_gridded_weights_nat.shape)
 
     #if GridScheme == 'Pyra':
-    #    V_S = Aset_gridded_visibilities_nat[ :, :]
-    #    V_SR = Aset_gridded_visibilities_nat[ :, :].real
-    #    V_SI = Aset_gridded_visibilities_nat[ :, :].imag
-    #    V_L = Bset_gridded_visibilities_nat[ :, :]
-    #    V_LR = Bset_gridded_visibilities_nat[ :, :].real
-    #    V_LI = Bset_gridded_visibilities_nat[ :, :].imag
-    #    w_S = Aset_gridded_weights_nat[ :, :]
-    #    w_L = Bset_gridded_weights_nat[ :, :]
+    #    V_Aset = Aset_gridded_visibilities_nat[ :, :]
+    #    V_AsetR = Aset_gridded_visibilities_nat[ :, :].real
+    #    V_AsetI = Aset_gridded_visibilities_nat[ :, :].imag
+    #    V_Bset = Bset_gridded_visibilities_nat[ :, :]
+    #    V_BsetR = Bset_gridded_visibilities_nat[ :, :].real
+    #    V_BsetI = Bset_gridded_visibilities_nat[ :, :].imag
+    #    w_Aset = Aset_gridded_weights_nat[ :, :]
+    #    w_Bset = Bset_gridded_weights_nat[ :, :]
     #else:
-    V_S = Aset_gridded_visibilities_nat
-    V_SR = Aset_gridded_visibilities_nat.real
-    V_SI = Aset_gridded_visibilities_nat.imag
-    V_L = Bset_gridded_visibilities_nat
-    V_LR = Bset_gridded_visibilities_nat.real
-    V_LI = Bset_gridded_visibilities_nat.imag
-    w_S = Aset_gridded_weights_nat
-    w_L = Bset_gridded_weights_nat
+    V_Aset = Aset_gridded_visibilities_nat
+    V_AsetR = Aset_gridded_visibilities_nat.real
+    V_AsetI = Aset_gridded_visibilities_nat.imag
+    V_Bset = Bset_gridded_visibilities_nat
+    V_BsetR = Bset_gridded_visibilities_nat.real
+    V_BsetI = Bset_gridded_visibilities_nat.imag
+    w_Aset = Aset_gridded_weights_nat
+    w_Bset = Bset_gridded_weights_nat
 
-    Vamp_S = np.sqrt(V_SI**2 + V_SR**2)
-    punch_vis(V_SR, du, outputdir + 'V_SR.fits')
-    punch_vis(V_SI, du, outputdir + 'V_SI.fits')
-    punch_vis(Vamp_S, du, outputdir + 'Vamp_S.fits')
-    punch_vis(w_S, du, outputdir + 'w_S.fits')
+    Vamp_Aset = np.sqrt(V_AsetI**2 + V_AsetR**2)
+    punch_vis(V_AsetR, du, outputdir + 'V_AsetR.fits')
+    punch_vis(V_AsetI, du, outputdir + 'V_AsetI.fits')
+    punch_vis(Vamp_Aset, du, outputdir + 'Vamp_Aset.fits')
+    punch_vis(w_Aset, du, outputdir + 'w_Aset.fits')
 
-    Vamp_L = np.sqrt(V_LI**2 + V_LR**2)
-    punch_vis(V_LR, du, outputdir + 'V_LR.fits')
-    punch_vis(V_LI, du, outputdir + 'V_LI.fits')
-    punch_vis(Vamp_L, du, outputdir + 'Vamp_L.fits')
-    punch_vis(w_L, du, outputdir + 'w_L.fits')
+    Vamp_Bset = np.sqrt(V_BsetI**2 + V_BsetR**2)
+    punch_vis(V_BsetR, du, outputdir + 'V_BsetR.fits')
+    punch_vis(V_BsetI, du, outputdir + 'V_BsetI.fits')
+    punch_vis(Vamp_Bset, du, outputdir + 'Vamp_Bset.fits')
+    punch_vis(w_Bset, du, outputdir + 'w_Bset.fits')
 
     #import PyVtools.Vtools as Vtools
-    #Vtools.View(w_L)
+    #Vtools.View(w_Bset)
 
     from scipy.signal import medfilt2d
 
     if FilterWeights:
-        print('filtering V_L')
-        wmedian = medfilt2d(w_L, kernel_size=kernel_w_L)
+        print('filtering V_Bset')
+        wmedian = medfilt2d(w_Bset, kernel_size=kernel_w_Bset)
         #Vtools.View(wmedian)
-        mask = ((w_L < wmedian / 2.) | (w_L < min_wL))
-        V_L[mask] = 0
-        V_LR[mask] = 0.
-        V_LI[mask] = 0.
-        w_L[mask] = 0.
+        mask = ((w_Bset < wmedian / 2.) | (w_Bset < min_wB))
+        V_Bset[mask] = 0
+        V_BsetR[mask] = 0.
+        V_BsetI[mask] = 0.
+        w_Bset[mask] = 0.
 
-        print('filtering V_S')
-        wmedian = medfilt2d(w_S, kernel_size=kernel_w_S)
-        mask = ((w_S < wmedian / 2.) | (w_S < min_wS))
-        V_S[mask] = 0
-        V_SR[mask] = 0.
-        V_SI[mask] = 0.
-        w_S[mask] = 0.
+        print('filtering V_Aset')
+        wmedian = medfilt2d(w_Aset, kernel_size=kernel_w_Aset)
+        mask = ((w_Aset < wmedian / 2.) | (w_Aset < min_wA))
+        V_Aset[mask] = 0
+        V_AsetR[mask] = 0.
+        V_AsetI[mask] = 0.
+        w_Aset[mask] = 0.
 
-    w = w_L * w_S / (w_L + w_S)
-    w[(w_L < min_wL) | (w_S < min_wS)] = 0.
+    wcommon = w_Bset * w_Aset / (w_Bset + w_Aset)
+    wcommon[(w_Bset < min_wB) | (w_Aset < min_wA)] = 0.
 
-    w = np.nan_to_num(w)
-    V_S = np.nan_to_num(V_S)
-    V_L = np.nan_to_num(V_L)
-    dofs = np.sum((w > 0.))
+    mask = (wcommon == 0.)
+    wcommonA = w_Aset.copy()
+    wcommonA[mask] = 0.
+    varA = 1 / wcommonA**2
+    varA[mask] = np.inf
+
+    wcommonB = w_Bset.copy()
+    wcommonB[mask] = 0.
+    varB = 1 / wcommonB**2
+    varB[mask] = np.inf
+
+    wcommon = np.nan_to_num(wcommon)
+    V_Aset = np.nan_to_num(V_Aset)
+    V_Bset = np.nan_to_num(V_Bset)
+    dofs = np.sum((wcommon > 0.))
     print("dofs = ", dofs)
 
     print("uv cell size", duvalue)
@@ -252,37 +279,37 @@ def xcorr(
     import matplotlib
     import matplotlib.pyplot as plt
 
-    #Vtools.View(w_L)
+    #Vtools.View(w_Bset)
 
-    print("polarexpand w_L")
-    w_L_polar = polarexpand(w_L)
-    #w_L_prof = np.average(w_L_polar, axis=1)
-    w_L_prof = np.median(w_L_polar, axis=1)
-    nphis, nrs = w_L_polar.shape
+    print("polarexpand w_Bset")
+    w_Bset_polar = polarexpand(w_Bset)
+    #w_Bset_prof = np.average(w_Bset_polar, axis=1)
+    w_Bset_prof = np.median(w_Bset_polar, axis=1)
+    nphis, nrs = w_Bset_polar.shape
     uvrads = (np.arange(nrs)) * duvalue
-    print("plotting w_L")
-    plt.plot(uvrads, w_L_prof, label='w_L', color='C1')
-    maskprof = ((w_L_prof > np.max(w_L_prof) / wprof_factor))
+    print("plotting w_Bset")
+    plt.plot(uvrads, w_Bset_prof, label='w_Bset', color='C1')
+    maskprof = ((w_Bset_prof > np.max(w_Bset_prof) / wprof_factor))
 
     #iw1=np.argmin(uvrads[maskprof])
     #iw2=np.argmax(uvrads[maskprof])
-    uvmin_L = np.min(uvrads[maskprof])
-    uvmax_L = np.max(uvrads[maskprof])
+    uvmin_Bset = np.min(uvrads[maskprof])
+    uvmax_Bset = np.max(uvrads[maskprof])
 
-    print("polarexpand w_S")
-    w_S_polar = polarexpand(w_S)
-    #w_S_prof = np.average(w_S_polar, axis=1)
-    w_S_prof = np.median(w_S_polar, axis=1)
-    print("plotting w_S")
-    plt.plot(uvrads, w_S_prof, label='w_S', color='C0')
-    maskprof = ((w_S_prof > np.max(w_S_prof) / wprof_factor))
+    print("polarexpand w_Aset")
+    w_Aset_polar = polarexpand(w_Aset)
+    #w_Aset_prof = np.average(w_Aset_polar, axis=1)
+    w_Aset_prof = np.median(w_Aset_polar, axis=1)
+    print("plotting w_Aset")
+    plt.plot(uvrads, w_Aset_prof, label='w_Aset', color='C0')
+    maskprof = ((w_Aset_prof > np.max(w_Aset_prof) / wprof_factor))
     #iw1=np.argmin(uvrads[maskprof])
     #iw2=np.argmax(uvrads[maskprof])
-    uvmin_S = np.min(uvrads[maskprof])
-    uvmax_S = np.max(uvrads[maskprof])
+    uvmin_Aset = np.min(uvrads[maskprof])
+    uvmax_Aset = np.max(uvrads[maskprof])
 
-    uvminreco = max((uvmin_S, uvmin_L))
-    uvmaxreco = min((uvmax_S, uvmax_L))
+    uvminreco = max((uvmin_Aset, uvmin_Bset))
+    uvmaxreco = min((uvmax_Aset, uvmax_Bset))
     print("recommended uvrange: ", uvminreco, uvmaxreco)
     plt.legend()
     print("plotting w profiles to: wprofs.pdf")
@@ -292,60 +319,60 @@ def xcorr(
     print("plotting w profiles to: wprofs.pdf")
     plt.savefig(outputdir + 'wprofs.pdf', bbox_inches='tight')
 
-    if uvrange:
+    if uvrange is not None:
         uvmin = uvrange[0]
         uvmax = uvrange[1]
-    elif DefaultUvrange:
+    else:
         uvmin = uvminreco
         uvmax = uvmaxreco
 
-    w_nonnill = np.sum((w > 0.))
-    print("w_nonnill ", w_nonnill)
+    Nw_nonnill = np.sum((wcommon > 0.))
+    print("w_nonnill ", Nw_nonnill)
     if uvmin > 0:
         print("uvradss.shape", uvradss.shape)
         print("uvmin", uvmin)
-        print("w.shape", w.shape)
-        w[(uvradss < uvmin)] = 0.
+        print("wcommon.shape", wcommon.shape)
+        wcommon[(uvradss < uvmin)] = 0.
         print("chosen uvrange clips out uvrads < ", uvmin)
     if uvmax > 0:
-        w[(uvradss > uvmax)] = 0.
+        wcommon[(uvradss > uvmax)] = 0.
         print("chosen uvrange clips out uvrads > ", uvmax)
-    w_nonnill = np.sum((w > 0.))
-    print("w_nonnill ", w_nonnill)
+    Nw_nonnill = np.sum((wcommon > 0.))
+    print("w_nonnill ", Nw_nonnill)
 
-    wmask = (w <= min_wS)
-    w[wmask] = 0.
+    wmask = (wcommon <= min_wA)
+    wcommon[wmask] = 0.
 
-    Vamp_S_wfilt = Vamp_S.copy()
-    Vamp_S_wfilt[wmask] = 0.
-    Vamp_L_wfilt = Vamp_L.copy()
-    Vamp_L_wfilt[wmask] = 0.
+    Vamp_Aset_wfilt = Vamp_Aset.copy()
+    Vamp_Aset_wfilt[wmask] = 0.
+    Vamp_Bset_wfilt = Vamp_Bset.copy()
+    Vamp_Bset_wfilt[wmask] = 0.
 
-    V_S_wfilt = V_S.copy()
-    V_S_wfilt[wmask] = 0.
-    V_SR_wfilt = V_SR.copy()
-    V_SR_wfilt[wmask] = 0.
-    V_SI_wfilt = V_SI.copy()
-    V_SI_wfilt[wmask] = 0.
-    w_S_wfilt = w_S.copy()
-    w_S_wfilt[wmask] = 0.
+    V_Aset_wfilt = V_Aset.copy()
+    V_Aset_wfilt[wmask] = 0.
+    V_AsetR_wfilt = V_AsetR.copy()
+    V_AsetR_wfilt[wmask] = 0.
+    V_AsetI_wfilt = V_AsetI.copy()
+    V_AsetI_wfilt[wmask] = 0.
+    w_Aset_wfilt = w_Aset.copy()
+    w_Aset_wfilt[wmask] = 0.
 
-    V_L_wfilt = V_L.copy()
-    V_L_wfilt[wmask] = 0.
-    V_LR_wfilt = V_LR.copy()
-    V_LR_wfilt[wmask] = 0.
-    V_LI_wfilt = V_LI.copy()
-    V_LI_wfilt[wmask] = 0.
-    w_L_wfilt = w_L.copy()
-    w_L_wfilt[wmask] = 0.
+    V_Bset_wfilt = V_Bset.copy()
+    V_Bset_wfilt[wmask] = 0.
+    V_BsetR_wfilt = V_BsetR.copy()
+    V_BsetR_wfilt[wmask] = 0.
+    V_BsetI_wfilt = V_BsetI.copy()
+    V_BsetI_wfilt[wmask] = 0.
+    w_Bset_wfilt = w_Bset.copy()
+    w_Bset_wfilt[wmask] = 0.
 
-    alpha_R = np.sum(w *
-                     (V_SR * V_LR + V_SI * V_LI)) / np.sum(w *
-                                                           (V_SR**2 + V_SI**2))
+    alpha_R = np.sum(wcommon *
+                     (V_AsetR * V_BsetR + V_AsetI * V_BsetI)) / np.sum(
+                         wcommon * (V_AsetR**2 + V_AsetI**2))
 
-    alpha_I = np.sum(w *
-                     (V_LR * V_SI - V_SR * V_LI)) / np.sum(w *
-                                                           (V_SR**2 + V_SI**2))
+    alpha_I = np.sum(wcommon *
+                     (V_BsetR * V_AsetI - V_AsetR * V_BsetI)) / np.sum(
+                         wcommon * (V_AsetR**2 + V_AsetI**2))
 
     print("alpha_R", alpha_R, "use this to scale flux calibrations")
     print("alpha_I", alpha_I)
@@ -356,8 +383,12 @@ def xcorr(
 
     print("setting up Minuit")
     Fix_alpha_R = False
-    f = lambda alpha_R, delta_x, delta_y: chi2(V_S_wfilt, V_L_wfilt, w, uus,
-                                               vvs, alpha_R, delta_x, delta_y)
+    #f = lambda alpha_R, delta_x, delta_y: chi2(
+    #    V_Aset_wfilt, V_Bset_wfilt, wcommon, uus, vvs, alpha_R, delta_x,
+    #    delta_y)
+    f = lambda alpha_R, delta_x, delta_y: chi2DERRS(
+        V_Aset_wfilt, V_Bset_wfilt, varA, varB, uus, vvs, alpha_R, delta_x,
+        delta_y)
     #m = Minuit(f, alpha_R=alpha_R, delta_x=0., delta_y=0.)
     m = Minuit(f, alpha_R=1., delta_x=0., delta_y=0.)
 
@@ -402,8 +433,13 @@ def xcorr(
     print("best fit ", pars)
     print("errors  ", err_pars)
 
-    bestchi2 = chi2(V_S, V_L, w, uus, vvs, m.values['alpha_R'],
-                    m.values['delta_x'], m.values['delta_y'])
+    # bestchi2 = chi2(V_Aset, V_Bset, wcommon, uus, vvs, m.values['alpha_R'],
+    # m.values['delta_x'], m.values['delta_y'])
+
+    bestchi2 = chi2DERRS(V_Aset, V_Bset, varA, varB,  uus, vvs, m.values['alpha_R'],
+                         m.values['delta_x'], m.values['delta_y'])
+
+
     print("bestchi2 ", bestchi2)
     print("red bestchi2 ", bestchi2 / dofs)
     print("Hessian errors scaled for red chi2 = 1")
@@ -412,34 +448,34 @@ def xcorr(
     file_bestfitparams = outputdir + 'bestfit_xcorr_wshift.npy'
     np.save(file_bestfitparams, pars)
 
-    V_L_m = shiftvis(V_S, uus, vvs, m.values['alpha_R'], m.values['delta_x'],
-                     m.values['delta_y'])
+    V_Bset_m = shiftvis(V_Aset, uus, vvs, m.values['alpha_R'],
+                        m.values['delta_x'], m.values['delta_y'])
 
-    V_L_m_wfilt = V_L_m.copy()
-    V_L_m_wfilt[wmask] = 0.
+    V_Bset_m_wfilt = V_Bset_m.copy()
+    V_Bset_m_wfilt[wmask] = 0.
 
-    punch_vis(V_L_m.real, du, outputdir + 'V_LmR.fits')
-    punch_vis(V_L_m.imag, du, outputdir + 'V_LmI.fits')
-    punch_vis(w_S, du, outputdir + 'w_Lm.fits')
+    punch_vis(V_Bset_m.real, du, outputdir + 'V_BsetmR.fits')
+    punch_vis(V_Bset_m.imag, du, outputdir + 'V_BsetmI.fits')
+    punch_vis(w_Aset, du, outputdir + 'w_Bsetm.fits')
 
-    punch_vis(V_L_m_wfilt.real, du, outputdir + 'V_LmR_wfilt.fits')
-    punch_vis(V_L_m_wfilt.imag, du, outputdir + 'V_LmI_wfilt.fits')
-    punch_vis(w, du, outputdir + 'w_Lm_wfilt.fits')
+    punch_vis(V_Bset_m_wfilt.real, du, outputdir + 'V_BsetmR_wfilt.fits')
+    punch_vis(V_Bset_m_wfilt.imag, du, outputdir + 'V_BsetmI_wfilt.fits')
+    punch_vis(wcommon, du, outputdir + 'w_Bsetm_wfilt.fits')
 
-    punch_vis(w, du, outputdir + 'w.fits')
+    punch_vis(wcommon, du, outputdir + 'w.fits')
 
-    punch_vis(V_SR_wfilt, du, outputdir + 'V_SR_wfilt.fits')
-    punch_vis(V_SI_wfilt, du, outputdir + 'V_SI_wfilt.fits')
-    punch_vis(Vamp_S_wfilt, du, outputdir + 'Vamp_S_wfilt.fits')
-    punch_vis(w, du, outputdir + 'w_S_wfilt.fits')
+    punch_vis(V_AsetR_wfilt, du, outputdir + 'V_AsetR_wfilt.fits')
+    punch_vis(V_AsetI_wfilt, du, outputdir + 'V_AsetI_wfilt.fits')
+    punch_vis(Vamp_Aset_wfilt, du, outputdir + 'Vamp_Aset_wfilt.fits')
+    punch_vis(wcommon, du, outputdir + 'w_Aset_wfilt.fits')
 
-    punch_vis(V_LR_wfilt, du, outputdir + 'V_LR_wfilt.fits')
-    punch_vis(V_LI_wfilt, du, outputdir + 'V_LI_wfilt.fits')
-    punch_vis(Vamp_L_wfilt, du, outputdir + 'Vamp_L_wfilt.fits')
-    punch_vis(w, du, outputdir + 'w_L_wfilt.fits')
+    punch_vis(V_BsetR_wfilt, du, outputdir + 'V_BsetR_wfilt.fits')
+    punch_vis(V_BsetI_wfilt, du, outputdir + 'V_BsetI_wfilt.fits')
+    punch_vis(Vamp_Bset_wfilt, du, outputdir + 'Vamp_Bset_wfilt.fits')
+    punch_vis(wcommon, du, outputdir + 'w_Bset_wfilt.fits')
 
 
-#file_visAset = 'PDS70_SB16_cont_chi2_casarestore.ms.selfcal.statwt'
+#file_visAset = 'PDS70_AsetB16_cont_chi2_casarestore.ms.selfcal.statwt'
 #file_visBset = 'PDS70_cont_copy_verylowS_casarestore.ms.selfcal.statwt'
 #dx = 0.004 * u.arcsec  #Bset
 #imsize = 2048
