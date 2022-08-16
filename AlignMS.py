@@ -105,7 +105,7 @@ def xcorr(
         DoApod=True,
         Grid=True,
         Grid_Bset=True,
-        uvrange=None,
+        uvrange=[-1, -1],  # -1: no filtering, None: recommended uvrange
         DefaultUvrange=False,
         DoMinos=False,
         kernel_w_Bset=5,
@@ -114,14 +114,17 @@ def xcorr(
         wprof_factor=10.,
         min_wA=100.,  # (mJy**-2)
         min_wB=100.,
+        Reset=True,
         outputdir='output_xcorr/'):
     nx = imsize
     ny = imsize
 
     if DefaultUvrange:
-        uvrange=None
-        
-    os.system('mkdir ' + outputdir)
+        uvrange = None
+
+    if Reset:
+        os.system('rm -rf ' + outputdir)
+        os.system('mkdir ' + outputdir)
 
     file_gridded_vis_Aset = outputdir + 'Aset_aligned_gridded_visibilities_nat.npy'
     file_gridded_weights_Aset = outputdir + 'Aset_aligned_gridded_weights_nat.npy'
@@ -436,9 +439,9 @@ def xcorr(
     # bestchi2 = chi2(V_Aset, V_Bset, wcommon, uus, vvs, m.values['alpha_R'],
     # m.values['delta_x'], m.values['delta_y'])
 
-    bestchi2 = chi2DERRS(V_Aset, V_Bset, varA, varB,  uus, vvs, m.values['alpha_R'],
-                         m.values['delta_x'], m.values['delta_y'])
-
+    bestchi2 = chi2DERRS(V_Aset, V_Bset, varA, varB, uus, vvs,
+                         m.values['alpha_R'], m.values['delta_x'],
+                         m.values['delta_y'])
 
     print("bestchi2 ", bestchi2)
     print("red bestchi2 ", bestchi2 / dofs)
