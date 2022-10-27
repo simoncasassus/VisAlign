@@ -1,7 +1,12 @@
 # VisAlign
 
-need  pyralysis virtual env:
+requires  pyralysis:
 
-sudo apt install virtualenv
-virtualenv pyralysis
-source pyralysis/bin/activate
+https://gitlab.com/miguelcarcamov/pyralysis
+
+# arguments:
+
+datacolumn='DATA',  # data column for input 
+datacolumns_output='DATA',  # data column to punch shifted vis. data
+
+note the input ms will be copied to the output ms, and then overwritten - if there is a `corrected' data column and `data' is chosen for the output, the shifted `corrected' will be punched into `data', and `corrected' will be the original. Best to use either both `data' or both `corrected'. 
