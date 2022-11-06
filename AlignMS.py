@@ -9,9 +9,9 @@ from iminuit import Minuit
 from astropy.io import fits
 import os
 
-HOME = os.environ.get('HOME')
-include_path = HOME + '/gitcommon/VisAlign/'
-sys.path.append(include_path)
+#HOME = os.environ.get('HOME')
+#include_path = HOME + '/gitcommon/VisAlign/'
+#sys.path.append(include_path)
 
 
 def cartesian2polar(outcoords, inputshape, origin, fieldscale=1.):
@@ -135,7 +135,8 @@ def xcorr(
         if (GridScheme == 'Pyra'):
             file_dirty = outputdir + 'dirty_' + os.path.basename(
                 file_visAset) + '.fits'
-            import Pyra_grid
+            from VisAlign import Pyra_grid
+            #import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, Aset_gridded_visibilities_nat, Aset_gridded_weights_nat = Pyra_grid.gridvis(
                 file_visAset, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
@@ -143,7 +144,8 @@ def xcorr(
                                         equivalencies=lambdas_equivalencies())
             duvalue = du.value
         elif (GridScheme == 'tclean'):
-            import Tclean_grid
+            from VisAlign import Tclean_grid
+            #import Tclean_grid
             file_dirty = outputdir + 'dirty_' + os.path.basename(file_visAset)
             dx, Aset_gridded_visibilities_nat, Aset_gridded_weights_nat = Tclean_grid.gridvis(
                 file_visAset,
@@ -165,7 +167,8 @@ def xcorr(
         if (GridScheme == 'Pyra'):
             file_dirty = outputdir + 'dirty_' + os.path.basename(
                 file_visBset) + '.fits'
-            import Pyra_grid
+            from VisAlign import Pyra_grid
+            #import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, Bset_gridded_visibilities_nat, Bset_gridded_weights_nat = Pyra_grid.gridvis(
                 file_visBset, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
@@ -173,7 +176,8 @@ def xcorr(
                                         equivalencies=lambdas_equivalencies())
             duvalue = du.value
         elif (GridScheme == 'tclean'):
-            import Tclean_grid
+            from VisAlign import Tclean_grid
+            #import Tclean_grid
             file_dirty = outputdir + 'dirty_' + os.path.basename(file_visAset)
             dx, Bset_gridded_visibilities_nat, Bset_gridded_weights_nat = Tclean_grid.gridvis(
                 file_visBset,

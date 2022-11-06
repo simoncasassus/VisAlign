@@ -149,7 +149,7 @@ def apply(
         #print("Changed PHASE_DIR", dataset.field.dataset[0].PHASE_DIR.compute())
         reader.write_xarray_ds(dataset=dataset.field.dataset,
                                ms_name=file_ms_output,
-                               columns=['REFERENCE_DIR', 'PHASE_DIR'],
+                               columns=['REFERENCE_DIR', 'PHASE_DIR', 'PhaseDir_Ref', 'RefDir_Ref'],
                                table_name="FIELD")
     # Write MAIN TABLE
     print("Write MAIN TABLE ", datacolumns_output)

@@ -52,6 +52,9 @@ def gridvis(file_ms,
     #dataset.field.mean_ref_dir
     #dataset.psf[0].sigma
 
+    print("baselines in klambdas:",dataset.min_baseline/dataset.spws.lambda_max, dataset.max_baseline/dataset.spws.lambda_min)
+
+    
     if hermitian_symmetry:
         h_symmetry = HermitianSymmetry(input_data=dataset)
         h_symmetry.apply()
