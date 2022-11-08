@@ -262,12 +262,12 @@ def xcorr(
     mask = (wcommon == 0.)
     wcommonA = w_Aset.copy()
     wcommonA[mask] = 0.
-    varA = 1 / wcommonA**2
+    varA = 1 / wcommonA 
     varA[mask] = np.inf
 
     wcommonB = w_Bset.copy()
     wcommonB[mask] = 0.
-    varB = 1 / wcommonB**2
+    varB = 1 / wcommonB 
     varB[mask] = np.inf
 
     wcommon = np.nan_to_num(wcommon)
