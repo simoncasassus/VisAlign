@@ -87,8 +87,8 @@ def chi2DERRS(V_Aset, V_Bset, varA, varB, uus, vvs, alpha_R, delta_x, delta_y):
     V_Bset_m = shiftvis(V_Aset, uus, vvs, alpha_R, delta_x, delta_y)
     diff = V_Bset - V_Bset_m
     squarediff = (diff.real**2) + (diff.imag**2)
-    weights = varB + alpha_R**2 * varA
-    retval = np.sum(squarediff / weights)
+    weights = 1./ (varB + alpha_R**2 * varA)
+    retval = np.sum(squarediff * weights)
     if np.isnan(retval):
         print("chi2 is NaN")
         retval = np.inf
