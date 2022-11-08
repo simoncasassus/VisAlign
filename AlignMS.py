@@ -87,7 +87,7 @@ def chi2DERRS(V_Aset, V_Bset, varA, varB, uus, vvs, alpha_R, delta_x, delta_y):
     V_Bset_m = shiftvis(V_Aset, uus, vvs, alpha_R, delta_x, delta_y)
     diff = V_Bset - V_Bset_m
     squarediff = (diff.real**2) + (diff.imag**2)
-    weights = 1./ (varB + alpha_R**2 * varA)
+    weights = 1. / (varB + alpha_R**2 * varA)
     retval = np.sum(squarediff * weights)
     if np.isnan(retval):
         print("chi2 is NaN")
@@ -191,6 +191,7 @@ def xcorr(
 
     du = (1 / (imsize * dx.to(u.rad).value))
     duvalue = du
+    print(">>>>> du ", du, "klambda")
 
     Aset_gridded_visibilities_nat = np.load(file_gridded_vis_Aset)
     Aset_gridded_weights_nat = np.load(file_gridded_weights_Aset)
@@ -262,12 +263,12 @@ def xcorr(
     mask = (wcommon == 0.)
     wcommonA = w_Aset.copy()
     wcommonA[mask] = 0.
-    varA = 1 / wcommonA 
+    varA = 1 / wcommonA
     varA[mask] = np.inf
 
     wcommonB = w_Bset.copy()
     wcommonB[mask] = 0.
-    varB = 1 / wcommonB 
+    varB = 1 / wcommonB
     varB[mask] = np.inf
 
     wcommon = np.nan_to_num(wcommon)
@@ -398,7 +399,8 @@ def xcorr(
         delta_y)
     #m = Minuit(f, alpha_R=alpha_R, delta_x=0., delta_y=0.)
     m = Minuit(f, alpha_R=1., delta_x=0., delta_y=0.)
-
+    m.errordef = Minuit.LEAST_SQUARES
+    m.print_level = 1
     m.tol = 1e-4
 
     m.errors['alpha_R'] = 1E-3
@@ -418,13 +420,16 @@ def xcorr(
     m.migrad()
     m.hesse()
 
-    print("m.params", m.params)
-    print("m.errors", m.errors)
+    #print("m.params", m.params)
+    #print("m.errors", m.errors)
 
     if DoMinos:
         print("start Minuit.minos")
         m.minos()
 
+    #print(m.get_param_states())
+    print("m.params", m.params)
+    print("m.errors", m.errors)
     params = m.params
     print("Best fit:")
     for iparam, aparam in enumerate(params):
@@ -437,8 +442,8 @@ def xcorr(
     err_pars = [m.errors['alpha_R'], m.errors['delta_x'],
                 m.errors['delta_y']]  #error in pars
 
-    print("best fit ", pars)
-    print("errors  ", err_pars)
+    print("best fit %.2e  %.2e  %.2e " % tuple(pars))
+    #print("errors  ", err_pars)
 
     # bestchi2 = chi2(V_Aset, V_Bset, wcommon, uus, vvs, m.values['alpha_R'],
     # m.values['delta_x'], m.values['delta_y'])
@@ -447,10 +452,12 @@ def xcorr(
                          m.values['alpha_R'], m.values['delta_x'],
                          m.values['delta_y'])
 
-    print("bestchi2 ", bestchi2)
-    print("red bestchi2 ", bestchi2 / dofs)
-    print("Hessian errors scaled for red chi2 = 1")
-    print("errors  ", np.array(err_pars) * np.sqrt(bestchi2 / dofs))
+    #print("bestchi2 ", bestchi2)
+    #print("red bestchi2 ", bestchi2 / dofs)
+    print("Hessian errors scaled by ", np.sqrt(bestchi2 / dofs),
+          "for red chi2 = 1")
+    scld_errs = np.array(err_pars) * np.sqrt(bestchi2 / dofs)
+    print("errors %.2e  %.2e  %.2e  " % tuple(scld_errs.tolist()))
 
     file_bestfitparams = outputdir + 'bestfit_xcorr_wshift.npy'
     np.save(file_bestfitparams, pars)
