@@ -41,6 +41,7 @@ def completeuvplane(V_half):
 
 def gridvis(file_ms,
             imsize=2048,
+            data_column=None,
             hermitian_symmetry=True,
             dx=None,
             wantpsf=False,
@@ -74,14 +75,15 @@ def gridvis(file_ms,
 
     print("imsize", imsize)
 
-    gridder = Gridder(imsize=imsize,
-                      cellsize=dx,
-                      padding_factor=1.0,
-                      hermitian_symmetry=hermitian_symmetry)
+    #gridder = Gridder(imsize=imsize,
+    #                  cellsize=dx,
+    #                  padding_factor=1.0,
+    #                  hermitian_symmetry=hermitian_symmetry)
 
     dirty_mapper = DirtyMapper(
         input_data=dataset,
         imsize=imsize,
+        data_column=data_column,
         padding_factor=1.0,
         cellsize=dx,
         stokes="I",  # "I,Q"

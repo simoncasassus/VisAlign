@@ -103,6 +103,7 @@ def xcorr(
         GridScheme='Pyra',  # 'tclean'
         FWHM_apod=6.,
         DoApod=True,
+        data_column=None, # None: default, CORRECTED_DATA ->  DATA
         Grid=True,
         Grid_Bset=True,
         uvrange=[-1, -1],  # -1: no filtering, None: recommended uvrange
@@ -139,7 +140,7 @@ def xcorr(
             #import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, Aset_gridded_visibilities_nat, Aset_gridded_weights_nat = Pyra_grid.gridvis(
-                file_visAset, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
+                file_visAset, imsize=imsize, wantdirtymap=file_dirty, dx=dx,data_column=data_column)
             du = (1 / (imsize * dx)).to(u.lambdas,
                                         equivalencies=lambdas_equivalencies())
             duvalue = du.value
@@ -171,7 +172,7 @@ def xcorr(
             #import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, Bset_gridded_visibilities_nat, Bset_gridded_weights_nat = Pyra_grid.gridvis(
-                file_visBset, imsize=imsize, wantdirtymap=file_dirty, dx=dx)
+                file_visBset, imsize=imsize, wantdirtymap=file_dirty, dx=dx,data_column=data_column)
             du = (1 / (imsize * dx)).to(u.lambdas,
                                         equivalencies=lambdas_equivalencies())
             duvalue = du.value

@@ -26,6 +26,7 @@ AlignMS.xcorr(
     dx,
     imsize,
     DoMinos=False,
+    data_column=None, # uses CORRECTED_DATA if it exists, if not revert to DATA
     Grid=True, 
     Grid_Bset=True,
     GridScheme='Pyra',   # 'tclean'

@@ -24,14 +24,14 @@ def apply_gain_shift(*args, **kwargs):
 
 
 def apply(
-        file_ms,
-        file_ms_output='output_dask.ms',
-        alpha_R=None,  # 1.
-        addPS=None,  # {'x0':0.,'y0':0.,'F':0},
-        Shift=None,
-        datacolumn='CORRECTED_DATA',  # DATA
-        datacolumns_output='CORRECTED_DATA',  # DATA
-        file_ms_ref=False):
+    file_ms,
+    file_ms_output='output_dask.ms',
+    alpha_R=None,  # 1.
+    addPS=None,  # {'x0':0.,'y0':0.,'F':0},
+    Shift=None,
+    # datacolumn='CORRECTED_DATA',  # DATA
+    # datacolumns_output='CORRECTED_DATA',  # DATA
+    file_ms_ref=False):
 
     # file_ms_ref : reference ms for pointing
     # Shift: apply shift, pass shift alpha , dec in arcsec
@@ -49,7 +49,6 @@ def apply(
     #os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
 
     reader = pyralysis.io.DaskMS(input_name=file_ms)
-    print("reading datacolumn", datacolumn)
     dataset = reader.read(calculate_psf=False)
     print("done reading")
 
@@ -62,6 +61,7 @@ def apply(
 
     for ims, ms in enumerate(dataset.ms_list):
         print("looping over ms", ims)
+        column_keys = ms.visibilities.dataset.data_vars.keys()
         uvw = ms.visibilities.uvw.data
         spw_id = ms.spw_id
         pol_id = ms.polarization_id
@@ -70,15 +70,15 @@ def apply(
         print("spw_id", spw_id, "nchans", nchans)
 
         uvw_broadcast = da.tile(uvw, nchans).reshape((len(uvw), nchans, 3))
-        print("broadcasted uvw values to all channels")
+        #print("broadcasted uvw values to all channels")
 
-        print("dask .compute on channel frequencies")
+        #print("dask .compute on channel frequencies")
         chans = dataset.spws.dataset[spw_id].CHAN_FREQ.data.squeeze(
             axis=0).compute() * un.Hz
-        print("done dask .compute")
+        #print("done dask .compute")
 
         chans_broadcast = chans[np.newaxis, :, np.newaxis]
-        print("broadcasted channels to same dimmensions as uvw")
+        #print("broadcasted channels to same dimmensions as uvw")
         uvw_lambdas = uvw_broadcast / chans_broadcast.to(un.m, un.spectral())
 
         # uvw_lambdas = array_unit_conversion(
@@ -90,6 +90,7 @@ def apply(
                                     uvw_lambdas,
                                     dtype=np.float64)
 
+        msdatacolumns = []
         if Shift is not None:
             print("applying gain and shift")
             uus = uvw_lambdas[:, :, 0]
@@ -97,9 +98,22 @@ def apply(
             eulerphase = alpha_R * da.exp(
                 2j * np.pi *
                 (uus * delta_x + vvs * delta_y)).astype(np.complex64)
-            ms.visibilities.data *= eulerphase[:, :, np.newaxis]
+            for acolumn in column_keys:
+                if "DATA" in acolumn:
+                    print("shifting column ", acolumn)
+                    ms.visibilities.dataset[
+                        acolumn] *= eulerphase[:, :, np.newaxis]
+                    msdatacolumns.append(acolumn)
+
+            # if "CORRECTED_DATA" in column_keys:
+            #     ms.visibilities.corrected *= eulerphase[:, :, np.newa            #        msdatacolumns.append(acolumn)
+            # if "DATA" in column_keys:
+            #     ms.visibilities.data *= eulerphase[:, :, np.newaxis]
+            # if "MODEL_DATA" in column_keys:
+            #     ms.visibilities.model *= eulerphase[:, :, np.newaxis]
+            #
         elif alpha_R is not None:
-            print("applying gain")
+            print("applying gain - only implemented for data column")
             ms.visibilities.data *= alpha_R
 
         if addPS is not None:
@@ -149,13 +163,16 @@ def apply(
         #print("Changed PHASE_DIR", dataset.field.dataset[0].PHASE_DIR.compute())
         reader.write_xarray_ds(dataset=dataset.field.dataset,
                                ms_name=file_ms_output,
-                               columns=['REFERENCE_DIR', 'PHASE_DIR', 'PhaseDir_Ref', 'RefDir_Ref'],
+                               columns=[
+                                   'REFERENCE_DIR', 'PHASE_DIR',
+                                   'PhaseDir_Ref', 'RefDir_Ref'
+                               ],
                                table_name="FIELD")
     # Write MAIN TABLE
-    print("Write MAIN TABLE ", datacolumns_output)
+    print("Write MAIN TABLE ", msdatacolumns)
     reader.write(dataset=dataset,
                  ms_name=file_ms_output,
-                 columns=datacolumns_output)
+                 columns=msdatacolumns)
 
     #X-check pointing
 
