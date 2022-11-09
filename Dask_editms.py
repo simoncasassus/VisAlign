@@ -50,7 +50,7 @@ def apply(
 
     reader = pyralysis.io.DaskMS(input_name=file_ms)
     print("reading datacolumn", datacolumn)
-    dataset = reader.read(data_column=datacolumn, calculate_psf=False)
+    dataset = reader.read(calculate_psf=False)
     print("done reading")
 
     field_dataset = dataset.field.dataset
