@@ -91,6 +91,10 @@ def apply(
                                     dtype=np.float64)
 
         msdatacolumns = []
+        for acolumn in column_keys:
+            if "DATA" in acolumn:
+                msdatacolumns.append(acolumn)
+
         if Shift is not None:
             print("applying gain and shift")
             uus = uvw_lambdas[:, :, 0]
@@ -101,9 +105,8 @@ def apply(
             for acolumn in column_keys:
                 if "DATA" in acolumn:
                     print("shifting column ", acolumn)
-                    ms.visibilities.dataset[
-                        acolumn] *= eulerphase[:, :, np.newaxis]
-                    msdatacolumns.append(acolumn)
+                    ms.visibilities.dataset[acolumn] *= eulerphase[:, :,
+                                                                   np.newaxis]
 
             # if "CORRECTED_DATA" in column_keys:
             #     ms.visibilities.corrected *= eulerphase[:, :, np.newa            #        msdatacolumns.append(acolumn)
@@ -113,8 +116,10 @@ def apply(
             #     ms.visibilities.model *= eulerphase[:, :, np.newaxis]
             #
         elif alpha_R is not None:
-            print("applying gain - only implemented for data column")
-            ms.visibilities.data *= alpha_R
+            print("applying gain")
+            if "DATA" in acolumn:
+                print("shifting column ", acolumn)
+                ms.visibilities.dataset[acolumn] *= alpha_R
 
         if addPS is not None:
             for iPS, aPS in enumerate(addPS):
@@ -126,7 +131,10 @@ def apply(
                 vvs = uvw_lambdas[:, :, 1]
                 VisPS = Flux * da.exp(
                     2j * np.pi * (uus * x0 + vvs * y0)).astype(np.complex64)
-                ms.visibilities.data += VisPS[:, :, np.newaxis]
+                for acolumn in column_keys:
+                    if "DATA" in acolumn:
+                        ms.visibilities.dataset[acolumn] += VisPS[:, :,
+                                                               np.newaxis]
 
     if not os.path.isdir(file_ms_output):
         os.system("rsync -va " + file_ms + "/  " + file_ms_output + "/")
