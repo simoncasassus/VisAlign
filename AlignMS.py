@@ -103,7 +103,7 @@ def xcorr(
         GridScheme='Pyra',  # 'tclean'
         FWHM_apod=6.,
         DoApod=True,
-        data_column=None, # None: default, CORRECTED_DATA ->  DATA
+        data_column=None,  # None: default, CORRECTED_DATA ->  DATA
         Grid=True,
         Grid_Bset=True,
         uvrange=[-1, -1],  # -1: no filtering, None: recommended uvrange
@@ -140,7 +140,11 @@ def xcorr(
             #import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, Aset_gridded_visibilities_nat, Aset_gridded_weights_nat = Pyra_grid.gridvis(
-                file_visAset, imsize=imsize, wantdirtymap=file_dirty, dx=dx,data_column=data_column)
+                file_visAset,
+                imsize=imsize,
+                wantdirtymap=file_dirty,
+                dx=dx,
+                data_column=data_column)
             du = (1 / (imsize * dx)).to(u.lambdas,
                                         equivalencies=lambdas_equivalencies())
             duvalue = du.value
@@ -172,7 +176,11 @@ def xcorr(
             #import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, Bset_gridded_visibilities_nat, Bset_gridded_weights_nat = Pyra_grid.gridvis(
-                file_visBset, imsize=imsize, wantdirtymap=file_dirty, dx=dx,data_column=data_column)
+                file_visBset,
+                imsize=imsize,
+                wantdirtymap=file_dirty,
+                dx=dx,
+                data_column=data_column)
             du = (1 / (imsize * dx)).to(u.lambdas,
                                         equivalencies=lambdas_equivalencies())
             duvalue = du.value
@@ -199,10 +207,10 @@ def xcorr(
     Bset_gridded_visibilities_nat = np.load(file_gridded_vis_Bset)
     Bset_gridded_weights_nat = np.load(file_gridded_weights_Bset)
 
-    print("Aset_gridded_visibilities_nat.shape",
-          Aset_gridded_visibilities_nat.shape)
-    print(Aset_gridded_visibilities_nat.dtype)
-    print(Aset_gridded_weights_nat.shape)
+    #print("Aset_gridded_visibilities_nat.shape",
+    #      Aset_gridded_visibilities_nat.shape)
+    #print(Aset_gridded_visibilities_nat.dtype)
+    #print(Aset_gridded_weights_nat.shape)
 
     #if GridScheme == 'Pyra':
     #    V_Aset = Aset_gridded_visibilities_nat[ :, :]
@@ -222,6 +230,7 @@ def xcorr(
     V_BsetI = Bset_gridded_visibilities_nat.imag
     w_Aset = Aset_gridded_weights_nat
     w_Bset = Bset_gridded_weights_nat
+
 
     Vamp_Aset = np.sqrt(V_AsetI**2 + V_AsetR**2)
     punch_vis(V_AsetR, du, outputdir + 'V_AsetR.fits')
@@ -258,25 +267,35 @@ def xcorr(
         V_AsetI[mask] = 0.
         w_Aset[mask] = 0.
 
-    wcommon = w_Bset * w_Aset / (w_Bset + w_Aset)
-    wcommon[(w_Bset < min_wB) | (w_Aset < min_wA)] = 0.
+    #wcommon = w_Bset * w_Aset / (w_Bset + w_Aset)
+    wcommon=np.zeros_like(w_Bset)
+    maskfinite=((w_Bset + w_Aset)  > 0.)
+    np.divide(w_Bset * w_Aset, (w_Bset + w_Aset), out=wcommon, where=maskfinite)
 
+    
+    wcommon[(w_Bset < min_wB) | (w_Aset < min_wA)] = 0.
+    
     mask = (wcommon == 0.)
     wcommonA = w_Aset.copy()
     wcommonA[mask] = 0.
-    varA = 1 / wcommonA
+    maskfinite = (wcommon > 0.)
+    varA = np.zeros_like(wcommonA)
+    np.divide(1, wcommonA, out=varA, where=maskfinite)
     varA[mask] = np.inf
 
     wcommonB = w_Bset.copy()
+    maskfinite = (wcommon > 0.)
     wcommonB[mask] = 0.
-    varB = 1 / wcommonB
+    varB = np.zeros_like(wcommonB)
+    np.divide(1, wcommonB, out=varB, where=maskfinite)
     varB[mask] = np.inf
 
-    wcommon = np.nan_to_num(wcommon)
+    wcommon = np.nan_to_num(wcommon, nan=0.)
     V_Aset = np.nan_to_num(V_Aset)
     V_Bset = np.nan_to_num(V_Bset)
     dofs = np.sum((wcommon > 0.))
     print("dofs = ", dofs)
+
 
     print("uv cell size", duvalue)
     us = -1 * (np.arange(0, nx) - (nx - 1.) / 2.) * duvalue
@@ -336,9 +355,8 @@ def xcorr(
         uvmax = uvmaxreco
 
     Nw_nonnill = np.sum((wcommon > 0.))
-    print("w_nonnill ", Nw_nonnill)
     if uvmin > 0:
-        print("uvradss.shape", uvradss.shape)
+        #print("uvradss.shape", uvradss.shape)
         print("uvmin", uvmin)
         print("wcommon.shape", wcommon.shape)
         wcommon[(uvradss < uvmin)] = 0.
@@ -347,10 +365,14 @@ def xcorr(
         wcommon[(uvradss > uvmax)] = 0.
         print("chosen uvrange clips out uvrads > ", uvmax)
     Nw_nonnill = np.sum((wcommon > 0.))
-    print("w_nonnill ", Nw_nonnill)
+    #print("w_nonnill ", Nw_nonnill)
+    print("number of common uv cells ", Nw_nonnill)
+
+    print(np.max(wcommon))
 
     wmask = (wcommon <= min_wA)
     wcommon[wmask] = 0.
+
 
     Vamp_Aset_wfilt = Vamp_Aset.copy()
     Vamp_Aset_wfilt[wmask] = 0.
@@ -383,7 +405,7 @@ def xcorr(
                      (V_BsetR * V_AsetI - V_AsetR * V_BsetI)) / np.sum(
                          wcommon * (V_AsetR**2 + V_AsetI**2))
 
-    print("alpha_R", alpha_R, "use this to scale flux calibrations")
+    print("alpha_R", alpha_R, " amalytical approx")
     print("alpha_I", alpha_I)
     alpha_mod = np.sqrt(alpha_R**2 + alpha_I**2)
     alpha_phase = (180. / np.pi) * np.arctan2(alpha_I, alpha_R)
