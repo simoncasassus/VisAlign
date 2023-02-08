@@ -137,7 +137,7 @@ def apply(
                                                                np.newaxis]
 
     if not os.path.isdir(file_ms_output):
-        os.system("rsync -va " + file_ms + "/  " + file_ms_output + "/")
+        os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
 
     print("PUNCH OUPUT MS")
     if file_ms_ref:

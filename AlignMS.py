@@ -116,7 +116,17 @@ def xcorr(
         min_wA=100.,  # (mJy**-2)
         min_wB=100.,
         Reset=True,
+        Fix_delta_x=False,
+        Fix_delta_y=False,
+        Fix_alpha_R=False,
+        range_delta_x=(-0.5, 0.5),
+        range_delta_y=(-0.5, 0.5),
+        range_alpha_R=(0., 10.),
         outputdir='output_xcorr/'):
+    """
+    GridScheme: set to either Pyra or tclean. 
+    """
+
     nx = imsize
     ny = imsize
 
@@ -231,7 +241,6 @@ def xcorr(
     w_Aset = Aset_gridded_weights_nat
     w_Bset = Bset_gridded_weights_nat
 
-
     Vamp_Aset = np.sqrt(V_AsetI**2 + V_AsetR**2)
     punch_vis(V_AsetR, du, outputdir + 'V_AsetR.fits')
     punch_vis(V_AsetI, du, outputdir + 'V_AsetI.fits')
@@ -268,13 +277,14 @@ def xcorr(
         w_Aset[mask] = 0.
 
     #wcommon = w_Bset * w_Aset / (w_Bset + w_Aset)
-    wcommon=np.zeros_like(w_Bset)
-    maskfinite=((w_Bset + w_Aset)  > 0.)
-    np.divide(w_Bset * w_Aset, (w_Bset + w_Aset), out=wcommon, where=maskfinite)
+    wcommon = np.zeros_like(w_Bset)
+    maskfinite = ((w_Bset + w_Aset) > 0.)
+    np.divide(w_Bset * w_Aset, (w_Bset + w_Aset),
+              out=wcommon,
+              where=maskfinite)
 
-    
     wcommon[(w_Bset < min_wB) | (w_Aset < min_wA)] = 0.
-    
+
     mask = (wcommon == 0.)
     wcommonA = w_Aset.copy()
     wcommonA[mask] = 0.
@@ -295,7 +305,6 @@ def xcorr(
     V_Bset = np.nan_to_num(V_Bset)
     dofs = np.sum((wcommon > 0.))
     print("dofs = ", dofs)
-
 
     print("uv cell size", duvalue)
     us = -1 * (np.arange(0, nx) - (nx - 1.) / 2.) * duvalue
@@ -373,7 +382,6 @@ def xcorr(
     wmask = (wcommon <= min_wA)
     wcommon[wmask] = 0.
 
-
     Vamp_Aset_wfilt = Vamp_Aset.copy()
     Vamp_Aset_wfilt[wmask] = 0.
     Vamp_Bset_wfilt = Vamp_Bset.copy()
@@ -405,15 +413,14 @@ def xcorr(
                      (V_BsetR * V_AsetI - V_AsetR * V_BsetI)) / np.sum(
                          wcommon * (V_AsetR**2 + V_AsetI**2))
 
-    print("alpha_R", alpha_R, " amalytical approx")
-    print("alpha_I", alpha_I)
-    alpha_mod = np.sqrt(alpha_R**2 + alpha_I**2)
-    alpha_phase = (180. / np.pi) * np.arctan2(alpha_I, alpha_R)
-    print("alpha_mod ", alpha_mod)
-    print("alpha_phase ", alpha_phase)
+    #print("alpha_R", alpha_R, " amalytical approx")
+    #print("alpha_I", alpha_I)
+    #alpha_mod = np.sqrt(alpha_R**2 + alpha_I**2)
+    #alpha_phase = (180. / np.pi) * np.arctan2(alpha_I, alpha_R)
+    #print("alpha_mod ", alpha_mod)
+    #print("alpha_phase ", alpha_phase)
 
     print("setting up Minuit")
-    Fix_alpha_R = False
     #f = lambda alpha_R, delta_x, delta_y: chi2(
     #    V_Aset_wfilt, V_Bset_wfilt, wcommon, uus, vvs, alpha_R, delta_x,
     #    delta_y)
@@ -430,12 +437,20 @@ def xcorr(
     m.errors['delta_x'] = 1E-4
     m.errors['delta_y'] = 1E-4
 
-    m.limits['delta_x'] = (-0.5, 0.5)
-    m.limits['delta_y'] = (-0.5, 0.5)
-    if Fix_alpha_R:
-        m.fixed['alpha_R'] = True
+    if Fix_delta_x:
+        m.fixed['delta_x']=True
     else:
-        m.limits['alpha_R'] = (0., 10.)
+        m.limits['delta_x'] = range_delta_x
+
+    if Fix_delta_y:
+        m.fixed['delta_y']=True
+    else:
+        m.limits['delta_y'] = range_delta_y
+
+    if Fix_alpha_R:
+        m.fixed['alpha_R']=True
+    else:
+        m.limits['alpha_R'] = range_alpha_R
 
     m.errordef = Minuit.LEAST_SQUARES
 
