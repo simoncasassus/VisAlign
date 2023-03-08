@@ -56,6 +56,10 @@ def gridvis(file_ms,
     print("baselines in klambdas:",
           dataset.min_baseline / dataset.spws.lambda_max,
           dataset.max_baseline / dataset.spws.lambda_min)
+    
+    print("baselines in m:",
+          dataset.min_baseline ,
+          dataset.max_baseline )
 
     if hermitian_symmetry:
         h_symmetry = HermitianSymmetry(input_data=dataset)
