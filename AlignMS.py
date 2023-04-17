@@ -121,7 +121,7 @@ def xcorr(
         Fix_alpha_R=False,
         range_delta_x=(-0.5, 0.5),
         range_delta_y=(-0.5, 0.5),
-        range_alpha_R=(0., 10.),
+        range_alpha_R=(0., 100.),
         outputdir='output_xcorr/'):
     """
     GridScheme: set to either Pyra or tclean. 
