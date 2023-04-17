@@ -134,7 +134,7 @@ def apply(
                 for acolumn in column_keys:
                     if "DATA" in acolumn:
                         ms.visibilities.dataset[acolumn] += VisPS[:, :,
-                                                               np.newaxis]
+                                                                  np.newaxis]
 
     if not os.path.isdir(file_ms_output):
         os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
@@ -187,9 +187,9 @@ def apply(
     check_reader = pyralysis.io.DaskMS(input_name=file_ms_output)
     check_dataset = check_reader.read()
     field_dataset = check_dataset.field.dataset
-    for i, row in enumerate(field_dataset):
-        print("output REFERENCE_DIR", row.REFERENCE_DIR.compute())
-        print("output PHASE_DIR", row.PHASE_DIR.compute())
+    # for i, row in enumerate(field_dataset):
+    print("output REFERENCE_DIR", field_dataset.REFERENCE_DIR.compute())
+    print("output PHASE_DIR", field_dataset.PHASE_DIR.compute())
 
     return
 
