@@ -146,7 +146,7 @@ def xcorr(
         if (GridScheme == 'Pyra'):
             file_dirty = outputdir + 'dirty_' + os.path.basename(
                 file_visAset) + '.fits'
-            from VisAlign import Pyra_grid
+            import Pyra_grid
             #import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, Aset_gridded_visibilities_nat, Aset_gridded_weights_nat = Pyra_grid.gridvis(
@@ -159,7 +159,7 @@ def xcorr(
                                         equivalencies=lambdas_equivalencies())
             duvalue = du.value
         elif (GridScheme == 'tclean'):
-            from VisAlign import Tclean_grid
+            import Tclean_grid
             #import Tclean_grid
             file_dirty = outputdir + 'dirty_' + os.path.basename(file_visAset)
             dx, Aset_gridded_visibilities_nat, Aset_gridded_weights_nat = Tclean_grid.gridvis(
@@ -182,7 +182,7 @@ def xcorr(
         if (GridScheme == 'Pyra'):
             file_dirty = outputdir + 'dirty_' + os.path.basename(
                 file_visBset) + '.fits'
-            from VisAlign import Pyra_grid
+            import Pyra_grid
             #import Pyra_grid
             from pyralysis.units import lambdas_equivalencies
             dx, Bset_gridded_visibilities_nat, Bset_gridded_weights_nat = Pyra_grid.gridvis(
@@ -195,7 +195,7 @@ def xcorr(
                                         equivalencies=lambdas_equivalencies())
             duvalue = du.value
         elif (GridScheme == 'tclean'):
-            from VisAlign import Tclean_grid
+            import Tclean_grid
             #import Tclean_grid
             file_dirty = outputdir + 'dirty_' + os.path.basename(file_visAset)
             dx, Bset_gridded_visibilities_nat, Bset_gridded_weights_nat = Tclean_grid.gridvis(
@@ -438,17 +438,17 @@ def xcorr(
     m.errors['delta_y'] = 1E-4
 
     if Fix_delta_x:
-        m.fixed['delta_x']=True
+        m.fixed['delta_x'] = True
     else:
         m.limits['delta_x'] = range_delta_x
 
     if Fix_delta_y:
-        m.fixed['delta_y']=True
+        m.fixed['delta_y'] = True
     else:
         m.limits['delta_y'] = range_delta_y
 
     if Fix_alpha_R:
-        m.fixed['alpha_R']=True
+        m.fixed['alpha_R'] = True
     else:
         m.limits['alpha_R'] = range_alpha_R
 

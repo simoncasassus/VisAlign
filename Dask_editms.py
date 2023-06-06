@@ -60,7 +60,7 @@ def apply(
         print("will apply shifts ", delta_x, delta_y)
 
     for ims, ms in enumerate(dataset.ms_list):
-        print("looping over ms", ims)
+        print("looping over partioned ms", ims) # spwid/field
         column_keys = ms.visibilities.dataset.data_vars.keys()
         uvw = ms.visibilities.uvw.data
         spw_id = ms.spw_id
@@ -92,8 +92,8 @@ def apply(
 
         msdatacolumns = []
         for acolumn in column_keys:
-            if "DATA" in acolumn:
-                msdatacolumns.append(acolumn)
+            #if "DATA" in acolumn:
+            msdatacolumns.append(acolumn)
 
         if Shift is not None:
             print("applying gain and shift")
@@ -102,11 +102,12 @@ def apply(
             eulerphase = alpha_R * da.exp(
                 2j * np.pi *
                 (uus * delta_x + vvs * delta_y)).astype(np.complex64)
-            for acolumn in column_keys:
-                if "DATA" in acolumn:
-                    print("shifting column ", acolumn)
-                    ms.visibilities.dataset[acolumn] *= eulerphase[:, :,
-                                                                   np.newaxis]
+            # for acolumn in column_keys:
+            for acolumn in msdatacolumns:
+                #if "DATA" in acolumn:
+                print("shifting column ", acolumn)
+                ms.visibilities.dataset[acolumn] *= eulerphase[:, :,
+                                                               np.newaxis]
 
             # if "CORRECTED_DATA" in column_keys:
             #     ms.visibilities.corrected *= eulerphase[:, :, np.newa            #        msdatacolumns.append(acolumn)
@@ -117,7 +118,7 @@ def apply(
             #
         elif alpha_R is not None:
             print("applying gain")
-            if "DATA" in acolumn:
+            for acolumn in msdatacolumns:
                 print("shifting column ", acolumn)
                 ms.visibilities.dataset[acolumn] *= alpha_R
 
@@ -131,10 +132,9 @@ def apply(
                 vvs = uvw_lambdas[:, :, 1]
                 VisPS = Flux * da.exp(
                     2j * np.pi * (uus * x0 + vvs * y0)).astype(np.complex64)
-                for acolumn in column_keys:
-                    if "DATA" in acolumn:
-                        ms.visibilities.dataset[acolumn] += VisPS[:, :,
-                                                                  np.newaxis]
+                for acolumn in msdatacolumns:
+                    ms.visibilities.dataset[acolumn] += VisPS[:, :,
+                                                              np.newaxis]
 
     if not os.path.isdir(file_ms_output):
         os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
