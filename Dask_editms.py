@@ -62,6 +62,9 @@ def apply(
     for ims, ms in enumerate(dataset.ms_list):
         print("looping over partioned ms", ims) # spwid/field
         column_keys = ms.visibilities.dataset.data_vars.keys()
+        print("column_keys",column_keys)
+        #raise ValueError
+    
         uvw = ms.visibilities.uvw.data
         spw_id = ms.spw_id
         pol_id = ms.polarization_id
@@ -92,7 +95,7 @@ def apply(
 
         msdatacolumns = []
         for acolumn in column_keys:
-            if "DATA" in acolumn:
+            if ("DATA" in acolumn) or ("CORRECTED" in acolumn) or ("MODEL" in acolumn):
                 msdatacolumns.append(acolumn)
 
         if Shift is not None:
