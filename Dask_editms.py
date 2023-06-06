@@ -24,14 +24,14 @@ def apply_gain_shift(*args, **kwargs):
 
 
 def apply(
-    file_ms,
-    file_ms_output='output_dask.ms',
-    alpha_R=None,  # 1.
-    addPS=None,  # {'x0':0.,'y0':0.,'F':0},
-    Shift=None,
-    # datacolumn='CORRECTED_DATA',  # DATA
-    # datacolumns_output='CORRECTED_DATA',  # DATA
-    file_ms_ref=False):
+        file_ms,
+        file_ms_output='output_dask.ms',
+        alpha_R=None,  # 1.
+        addPS=None,  # {'x0':0.,'y0':0.,'F':0},
+        Shift=None,
+        # datacolumn='CORRECTED_DATA',  # DATA
+        # datacolumns_output='CORRECTED_DATA',  # DATA
+        file_ms_ref=False,Verbose=False):
 
     # file_ms_ref : reference ms for pointing
     # Shift: apply shift, pass shift alpha , dec in arcsec
@@ -62,8 +62,8 @@ def apply(
     for ims, ms in enumerate(dataset.ms_list):
         print("looping over partioned ms", ims) # spwid/field
         column_keys = ms.visibilities.dataset.data_vars.keys()
-        print("column_keys",column_keys)
-        #raise ValueError
+        if Verbose:
+            print("column_keys",column_keys)
     
         uvw = ms.visibilities.uvw.data
         spw_id = ms.spw_id
