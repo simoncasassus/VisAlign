@@ -51,17 +51,17 @@ def apply(
     #os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
 
     reader = pyralysis.io.DaskMS(input_name=file_ms)
-    dataset_input = reader.read(calculate_psf=False)
+    input_dataset = reader.read(calculate_psf=False)
     print("done reading")
 
-    field_dataset = dataset_input.field.dataset
+    field_dataset = input_dataset.field.dataset
 
     if Shift is not None:
         delta_x = Shift[0] * np.pi / (180. * 3600.)
         delta_y = Shift[1] * np.pi / (180. * 3600.)
         print("will apply shifts ", delta_x, delta_y)
 
-    for ims, ms in enumerate(dataset_input.ms_list):
+    for ims, ms in enumerate(input_dataset.ms_list):
         print("looping over partioned ms", ims)  # spwid/field
         column_keys = ms.visibilities.dataset.data_vars.keys()
         if Verbose:
@@ -70,15 +70,15 @@ def apply(
         uvw = ms.visibilities.uvw.data
         spw_id = ms.spw_id
         pol_id = ms.polarization_id
-        ncorrs = dataset_input.polarization.ncorrs[pol_id]
-        nchans = dataset_input.spws.nchans[spw_id]
+        ncorrs = input_dataset.polarization.ncorrs[pol_id]
+        nchans = input_dataset.spws.nchans[spw_id]
         print("spw_id", spw_id, "nchans", nchans)
 
         uvw_broadcast = da.tile(uvw, nchans).reshape((len(uvw), nchans, 3))
         #print("broadcasted uvw values to all channels")
 
         #print("dask .compute on channel frequencies")
-        chans = dataset_input.spws.dataset[spw_id].CHAN_FREQ.data.squeeze(
+        chans = input_dataset.spws.dataset[spw_id].CHAN_FREQ.data.squeeze(
             axis=0).compute() * un.Hz
         #print("done dask .compute")
 
@@ -155,38 +155,34 @@ def apply(
         ref_dataset = ref_reader.read()
         field_dataset = ref_dataset.field.dataset
 
-        #if len(field_dataset) == len(dataset_input.field.dataset):
+        #if len(field_dataset) == len(input_dataset.field.dataset):
         #    print("ANCHOR ")
-        #    dataset_input.field.dataset = field_dataset
+        #    input_dataset.field.dataset = field_dataset
         #    print("uncomment above")
         #
         #    ## print("field_dataset[0].REFERENCE_DIR",field_dataset[0].REFERENCE_DIR.compute())
         #    ## print("field_dataset[0].PHASE_DIR",field_dataset[0].PHASE_DIR.compute())
         #else:
-        print("field_dataset", field_dataset)
+        #print("field_dataset", field_dataset)
         #pprint(field_dataset)
-        print("field_dataset.REFERENCE_DIR", field_dataset.REFERENCE_DIR.compute())
-        print("field_dataset.PHASE_DIR", field_dataset.PHASE_DIR.compute())
+        #print("field_dataset.REFERENCE_DIR", field_dataset.REFERENCE_DIR.compute())
+        #print("field_dataset.PHASE_DIR", field_dataset.PHASE_DIR.compute())
         #pprint(field_dataset.REFERENCE_DIR)
-        #for i, row in enumerate(dataset_input.field.dataset):
+        #for i, row in enumerate(input_dataset.field.dataset):
         #print("row", row)
         #pprint(row)
-        print("dataset_input.field.dataset",dataset_input.field.dataset)
-        print("dataset_input.field.dataset.REFERENCE_DIR",dataset_input.field.dataset.REFERENCE_DIR.compute())
-        print("dataset_input.field.dataset.PHASE_DIR",dataset_input.field.dataset.PHASE_DIR.compute())
-        dataset_input.field.dataset.REFERENCE_DIR[:] = field_dataset.REFERENCE_DIR[0]
-        dataset_input.field.dataset.PHASE_DIR[:] = field_dataset.PHASE_DIR[0]
+        #print("input_dataset.field.dataset",input_dataset.field.dataset)
+        #print("input_dataset.field.dataset.REFERENCE_DIR",input_dataset.field.dataset.REFERENCE_DIR.compute())
+        #print("input_dataset.field.dataset.PHASE_DIR",input_dataset.field.dataset.PHASE_DIR.compute())
+        input_dataset.field.dataset.REFERENCE_DIR[:] = field_dataset.REFERENCE_DIR[0]
+        input_dataset.field.dataset.PHASE_DIR[:] = field_dataset.PHASE_DIR[0]
 
-        #if os.path.exists(file_ms_output):
-        #    print("The output file exists")
-        #else:
-        #    print("The output file does not exists!")
 
         # Write FIELD TABLE
         print("Write FIELD TABLE ")
         #print("Changed REFERENCE_DIR", dataset.field.dataset[0].REFERENCE_DIR.compute())
         #print("Changed PHASE_DIR", dataset.field.dataset[0].PHASE_DIR.compute())
-        reader.write_xarray_ds(dataset=dataset_input.field.dataset,
+        reader.write_xarray_ds(dataset=input_dataset.field.dataset,
                                ms_name=file_ms_output,
                                columns=[
                                    'REFERENCE_DIR', 'PHASE_DIR',
@@ -195,7 +191,7 @@ def apply(
                                table_name="FIELD")
     # Write MAIN TABLE
     print("Write MAIN TABLE ", msdatacolumns)
-    reader.write(dataset=dataset_input,
+    reader.write(dataset=input_dataset,
                  ms_name=file_ms_output,
                  columns=msdatacolumns)
 
@@ -205,32 +201,9 @@ def apply(
     check_dataset = check_reader.read()
     field_dataset = check_dataset.field.dataset
     # for i, row in enumerate(field_dataset):
-    print("output REFERENCE_DIR", field_dataset.REFERENCE_DIR.compute())
-    print("output PHASE_DIR", field_dataset.PHASE_DIR.compute())
+    #print("output REFERENCE_DIR", field_dataset.REFERENCE_DIR.compute())
+    #print("output PHASE_DIR", field_dataset.PHASE_DIR.compute())
 
     return
 
 
-# #full LBs:
-# alpha_R=0.7663912035737
-# delta_x=-0.011864883679078701
-# delta_y=-0.018108213291175686
-#
-#
-# #>250klambda
-# alpha_R=0.7574830128410711
-# delta_x=-0.012395319330140228
-# delta_y=-0.018187380096834835
-#
-#
-#
-# file_ms='PDS70_SB16_cont.ms.selfcal'
-# file_ms_output='PDS70_SB16_cont_selfcal_aligned.ms'
-# file_ms_ref='PDS70_cont.ms'
-# os.system("rm -rf "+file_ms_output)
-# os.system("rsync -va "+file_ms+"/  "+file_ms_output+"/")
-#
-# SBs = apply_gain_shift(file_ms,file_ms_output=file_ms_output,alpha_R=alpha_R,Shift=[delta_x,delta_y],file_ms_ref=file_ms_ref)
-# #SBs = apply_gain_shift(file_ms,file_ms_output=file_ms_output,alpha_R=alpha_R,file_ms_ref=file_ms_ref)
-#
-#
