@@ -1,6 +1,7 @@
 import sys
 import os
 import numpy as np
+from pprint import pprint
 # import re
 # from astropy.io import fits
 # from astropy.units import Quantity
@@ -31,7 +32,8 @@ def apply(
         Shift=None,
         # datacolumn='CORRECTED_DATA',  # DATA
         # datacolumns_output='CORRECTED_DATA',  # DATA
-        file_ms_ref=False,Verbose=False):
+        file_ms_ref=False,
+        Verbose=False):
 
     # file_ms_ref : reference ms for pointing
     # Shift: apply shift, pass shift alpha , dec in arcsec
@@ -49,34 +51,34 @@ def apply(
     #os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
 
     reader = pyralysis.io.DaskMS(input_name=file_ms)
-    dataset = reader.read(calculate_psf=False)
+    dataset_input = reader.read(calculate_psf=False)
     print("done reading")
 
-    field_dataset = dataset.field.dataset
+    field_dataset = dataset_input.field.dataset
 
     if Shift is not None:
         delta_x = Shift[0] * np.pi / (180. * 3600.)
         delta_y = Shift[1] * np.pi / (180. * 3600.)
         print("will apply shifts ", delta_x, delta_y)
 
-    for ims, ms in enumerate(dataset.ms_list):
-        print("looping over partioned ms", ims) # spwid/field
+    for ims, ms in enumerate(dataset_input.ms_list):
+        print("looping over partioned ms", ims)  # spwid/field
         column_keys = ms.visibilities.dataset.data_vars.keys()
         if Verbose:
-            print("column_keys",column_keys)
-    
+            print("column_keys", column_keys)
+
         uvw = ms.visibilities.uvw.data
         spw_id = ms.spw_id
         pol_id = ms.polarization_id
-        ncorrs = dataset.polarization.ncorrs[pol_id]
-        nchans = dataset.spws.nchans[spw_id]
+        ncorrs = dataset_input.polarization.ncorrs[pol_id]
+        nchans = dataset_input.spws.nchans[spw_id]
         print("spw_id", spw_id, "nchans", nchans)
 
         uvw_broadcast = da.tile(uvw, nchans).reshape((len(uvw), nchans, 3))
         #print("broadcasted uvw values to all channels")
 
         #print("dask .compute on channel frequencies")
-        chans = dataset.spws.dataset[spw_id].CHAN_FREQ.data.squeeze(
+        chans = dataset_input.spws.dataset[spw_id].CHAN_FREQ.data.squeeze(
             axis=0).compute() * un.Hz
         #print("done dask .compute")
 
@@ -95,7 +97,8 @@ def apply(
 
         msdatacolumns = []
         for acolumn in column_keys:
-            if ("DATA" in acolumn) or ("CORRECTED" in acolumn) or ("MODEL" in acolumn):
+            if ("DATA" in acolumn) or ("CORRECTED" in acolumn) or ("MODEL"
+                                                                   in acolumn):
                 msdatacolumns.append(acolumn)
 
         if Shift is not None:
@@ -136,8 +139,7 @@ def apply(
                 VisPS = Flux * da.exp(
                     2j * np.pi * (uus * x0 + vvs * y0)).astype(np.complex64)
                 for acolumn in msdatacolumns:
-                    ms.visibilities.dataset[acolumn] += VisPS[:, :,
-                                                              np.newaxis]
+                    ms.visibilities.dataset[acolumn] += VisPS[:, :, np.newaxis]
 
     if not os.path.isdir(file_ms_output):
         os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
@@ -153,26 +155,38 @@ def apply(
         ref_dataset = ref_reader.read()
         field_dataset = ref_dataset.field.dataset
 
-        if len(field_dataset) == len(dataset.field.dataset):
-            dataset.field.dataset = field_dataset
+        #if len(field_dataset) == len(dataset_input.field.dataset):
+        #    print("ANCHOR ")
+        #    dataset_input.field.dataset = field_dataset
+        #    print("uncomment above")
+        #
+        #    ## print("field_dataset[0].REFERENCE_DIR",field_dataset[0].REFERENCE_DIR.compute())
+        #    ## print("field_dataset[0].PHASE_DIR",field_dataset[0].PHASE_DIR.compute())
+        #else:
+        print("field_dataset", field_dataset)
+        #pprint(field_dataset)
+        print("field_dataset.REFERENCE_DIR", field_dataset.REFERENCE_DIR.compute())
+        print("field_dataset.PHASE_DIR", field_dataset.PHASE_DIR.compute())
+        #pprint(field_dataset.REFERENCE_DIR)
+        #for i, row in enumerate(dataset_input.field.dataset):
+        #print("row", row)
+        #pprint(row)
+        print("dataset_input.field.dataset",dataset_input.field.dataset)
+        print("dataset_input.field.dataset.REFERENCE_DIR",dataset_input.field.dataset.REFERENCE_DIR.compute())
+        print("dataset_input.field.dataset.PHASE_DIR",dataset_input.field.dataset.PHASE_DIR.compute())
+        dataset_input.field.dataset.REFERENCE_DIR[:] = field_dataset.REFERENCE_DIR[0]
+        dataset_input.field.dataset.PHASE_DIR[:] = field_dataset.PHASE_DIR[0]
 
-            #print("field_dataset[0].REFERENCE_DIR",field_dataset[0].REFERENCE_DIR.compute())
-            #print("field_dataset[0].PHASE_DIR",field_dataset[0].PHASE_DIR.compute())
-        else:
-            for i, row in enumerate(dataset.field.dataset):
-                row['REFERENCE_DIR'] = field_dataset[0].REFERENCE_DIR
-                row['PHASE_DIR'] = field_dataset[0].PHASE_DIR
-
-        if os.path.exists(file_ms_output):
-            print("The output file exists")
-        else:
-            print("The output file does not exists!")
+        #if os.path.exists(file_ms_output):
+        #    print("The output file exists")
+        #else:
+        #    print("The output file does not exists!")
 
         # Write FIELD TABLE
         print("Write FIELD TABLE ")
         #print("Changed REFERENCE_DIR", dataset.field.dataset[0].REFERENCE_DIR.compute())
         #print("Changed PHASE_DIR", dataset.field.dataset[0].PHASE_DIR.compute())
-        reader.write_xarray_ds(dataset=dataset.field.dataset,
+        reader.write_xarray_ds(dataset=dataset_input.field.dataset,
                                ms_name=file_ms_output,
                                columns=[
                                    'REFERENCE_DIR', 'PHASE_DIR',
@@ -181,7 +195,7 @@ def apply(
                                table_name="FIELD")
     # Write MAIN TABLE
     print("Write MAIN TABLE ", msdatacolumns)
-    reader.write(dataset=dataset,
+    reader.write(dataset=dataset_input,
                  ms_name=file_ms_output,
                  columns=msdatacolumns)
 
