@@ -51,7 +51,7 @@ def apply(
     #os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
 
     reader = pyralysis.io.DaskMS(input_name=file_ms)
-    input_dataset = reader.read(calculate_psf=False)
+    input_dataset = reader.calculate_psf=False)
     print("done reading")
 
     field_dataset = input_dataset.field.dataset
@@ -152,7 +152,7 @@ def apply(
         print("loading reference ms")
 
         ref_reader = pyralysis.io.DaskMS(input_name=file_ms_ref)
-        ref_dataset = ref_reader.read()
+        ref_dataset = ref_reader.read(calculate_psf=False)
         field_dataset = ref_dataset.field.dataset
 
         #if len(field_dataset) == len(input_dataset.field.dataset):
@@ -198,7 +198,7 @@ def apply(
     #X-check pointing
 
     check_reader = pyralysis.io.DaskMS(input_name=file_ms_output)
-    check_dataset = check_reader.read()
+    check_dataset = check_reader.read(calculate_psf=False)
     field_dataset = check_dataset.field.dataset
     # for i, row in enumerate(field_dataset):
     #print("output REFERENCE_DIR", field_dataset.REFERENCE_DIR.compute())
