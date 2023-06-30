@@ -51,7 +51,7 @@ def apply(
     #os.system("rsync -a " + file_ms + "/  " + file_ms_output + "/")
 
     reader = pyralysis.io.DaskMS(input_name=file_ms)
-    input_dataset = reader.calculate_psf=False)
+    input_dataset = reader.read(calculate_psf=False)
     print("done reading")
 
     field_dataset = input_dataset.field.dataset
@@ -182,7 +182,7 @@ def apply(
         print("Write FIELD TABLE ")
         #print("Changed REFERENCE_DIR", dataset.field.dataset[0].REFERENCE_DIR.compute())
         #print("Changed PHASE_DIR", dataset.field.dataset[0].PHASE_DIR.compute())
-        reader.write_xarray_ds(dataset=input_dataset.field.dataset,
+        er.write_xarray_ds(dataset=input_dataset.field.dataset,
                                ms_name=file_ms_output,
                                columns=[
                                    'REFERENCE_DIR', 'PHASE_DIR',
@@ -191,13 +191,13 @@ def apply(
                                table_name="FIELD")
     # Write MAIN TABLE
     print("Write MAIN TABLE ", msdatacolumns)
-    reader.write(dataset=input_dataset,
+    er.write(dataset=input_dataset,
                  ms_name=file_ms_output,
                  columns=msdatacolumns)
 
     #X-check pointing
 
-    check_reader = pyralysis.io.DaskMS(input_name=file_ms_output)
+    check_er = pyralysis.io.DaskMS(input_name=file_ms_output)
     check_dataset = check_reader.read(calculate_psf=False)
     field_dataset = check_dataset.field.dataset
     # for i, row in enumerate(field_dataset):
