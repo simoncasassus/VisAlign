@@ -31,6 +31,9 @@ phase centers could be different - set CoarseAlign to True if this might be the 
 file_ms_output_coarsealign = 'MWC758_B6_SB17_snow_coarsealigned_toLB17.ms'
 CoarseAlign = True
 
+"""
+set canvas for gridding
+"""
 dx = 0.005 * u.arcsec  # pixel size for the finer resolution dataset
 imsize = 2048  # should be large enough so that 1/(dx * imsize) is comparable to the shortest baselines.
 
@@ -98,6 +101,12 @@ AlignMS.xcorr(
     range_delta_x=(-.5, .5),
     range_delta_y=(-.5, .5),
     outputdir=outputdir)
+
+
+"""
+now apply the shift
+"""
+
 
 file_ms = file_visAset
 file_ms_ref = file_visBset
