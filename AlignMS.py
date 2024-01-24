@@ -318,13 +318,13 @@ def xcorr(
 
     #Vtools.View(w_Bset)
 
-    print("polarexpand w_Bset")
+    #print("polarexpand w_Bset")
     w_Bset_polar = polarexpand(w_Bset)
     #w_Bset_prof = np.average(w_Bset_polar, axis=1)
     w_Bset_prof = np.median(w_Bset_polar, axis=1)
     nphis, nrs = w_Bset_polar.shape
     uvrads = (np.arange(nrs)) * duvalue
-    print("plotting w_Bset")
+    #print("plotting w_Bset")
     plt.plot(uvrads, w_Bset_prof, label='w_Bset', color='C1')
     maskprof = ((w_Bset_prof > np.max(w_Bset_prof) / wprof_factor))
 
@@ -333,11 +333,11 @@ def xcorr(
     uvmin_Bset = np.min(uvrads[maskprof])
     uvmax_Bset = np.max(uvrads[maskprof])
 
-    print("polarexpand w_Aset")
+    #print("polarexpand w_Aset")
     w_Aset_polar = polarexpand(w_Aset)
     #w_Aset_prof = np.average(w_Aset_polar, axis=1)
     w_Aset_prof = np.median(w_Aset_polar, axis=1)
-    print("plotting w_Aset")
+    #print("plotting w_Aset")
     plt.plot(uvrads, w_Aset_prof, label='w_Aset', color='C0')
     maskprof = ((w_Aset_prof > np.max(w_Aset_prof) / wprof_factor))
     #iw1=np.argmin(uvrads[maskprof])
@@ -493,7 +493,7 @@ def xcorr(
     #print("bestchi2 ", bestchi2)
     #print("red bestchi2 ", bestchi2 / dofs)
     print("Hessian errors scaled by ", np.sqrt(bestchi2 / dofs),
-          "for red chi2 = 1")
+          "for reduced chi2 = 1")
     scld_errs = np.array(err_pars) * np.sqrt(bestchi2 / dofs)
     print("errors %.2e  %.2e  %.2e  " % tuple(scld_errs.tolist()))
 
