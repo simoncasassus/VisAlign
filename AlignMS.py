@@ -104,14 +104,14 @@ def xcorr(
         FWHM_apod=6.,
         DoApod=True,
         data_column=None,  # None: default, CORRECTED_DATA ->  DATA
-        Grid=True,
+        Grid_Aset=True,
         Grid_Bset=True,
-        uvrange=[-1, -1],  # -1: no filtering, None: recommended uvrange
-        DefaultUvrange=False,
+        uvrange=[-1, -1],  # -1: no filtering, None: automatic uvrange
+        DefaultUvrange=False, # automatic uvrange
         DoMinos=False,
         kernel_w_Bset=5,
         kernel_w_Aset=5,
-        FilterWeights=True,
+        FilterWeights=False,
         wprof_factor=10.,
         min_wA=100.,  # (mJy**-2)
         min_wB=100.,
@@ -125,6 +125,7 @@ def xcorr(
         outputdir='output_xcorr/'):
     """
     GridScheme: set to either Pyra or tclean. 
+    wprof_factor: factor relative to peak weights (median-averaged over azimuth) to define automatic uvrange
     """
 
     nx = imsize
@@ -142,7 +143,7 @@ def xcorr(
     file_gridded_vis_Bset = outputdir + 'Bset_gridded_visibilities_nat.npy'
     file_gridded_weights_Bset = outputdir + 'Bset_gridded_weights_nat.npy'
 
-    if Grid:
+    if Grid_Aset:
         if (GridScheme == 'Pyra'):
             file_dirty = outputdir + 'dirty_' + os.path.basename(
                 file_visAset) + '.fits'
