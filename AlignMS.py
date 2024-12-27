@@ -111,7 +111,7 @@ def xcorr(
         DoMinos=False,
         kernel_w_Bset=5,
         kernel_w_Aset=5,
-        FilterWeights=False,
+        FilterWeights=True,
         wprof_factor=10.,
         min_wA=100.,  # (mJy**-2)
         min_wB=100.,

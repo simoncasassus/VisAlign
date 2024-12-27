@@ -48,7 +48,11 @@ def gridvis(file_ms,
             wantdirtymap=False):
 
     print("processing: ", file_ms)
-    x = DaskMS(input_name=file_ms, chunks={'row': 100000, 'chan': 30})
+    x = DaskMS(input_name=file_ms,
+                             chunks={
+                                 'row': 100000,
+                                 'chan': 30
+                             })
     dataset = x.read(filter_flag_column=True, calculate_psf=True)
     #dataset.field.mean_ref_dir
     #dataset.psf[0].sigma
@@ -56,8 +60,10 @@ def gridvis(file_ms,
     print("baselines in klambdas:",
           dataset.min_baseline / dataset.spws.lambda_max,
           dataset.max_baseline / dataset.spws.lambda_min)
-
-    print("baselines in m:", dataset.min_baseline, dataset.max_baseline)
+    
+    print("baselines in m:",
+          dataset.min_baseline ,
+          dataset.max_baseline )
 
     if hermitian_symmetry:
         h_symmetry = HermitianSymmetry(input_data=dataset)

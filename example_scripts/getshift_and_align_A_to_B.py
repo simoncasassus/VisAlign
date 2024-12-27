@@ -45,9 +45,9 @@ def select1stfield(direction):
     direction = np.squeeze(direction)
     print("direction.shape", direction.shape)
     if len(direction.shape) > 1:
+        print("MANY FIELDS")
         direction = direction[0]
     return direction
-
 
 ref_dirs_A, phase_dirs_A = mskeywords.pointing(file_visAset)
 ref_dirs_A = select1stfield(ref_dirs_A)
@@ -68,6 +68,14 @@ print("file_visBset phase_dirs", pprint.pformat(phase_dirs_B))
 delta_x_0 = -1 * 3600. * (phase_dirs_B[0] - phase_dirs_A[0]) / np.cos(
     phase_dirs_B[1] * np.pi / 180.)
 delta_y_0 = -1 * (phase_dirs_B[1] - phase_dirs_A[1]) * 3600.
+
+print("coarse shift: delta_x", delta_x_0)
+print("coarse shift: delta_y", delta_y_0)
+
+
+delta_x_0 = -1 * 3600. * (ref_dirs_B[0] - ref_dirs_A[0]) / np.cos(
+    ref_dirs_B[1] * np.pi / 180.)
+delta_y_0 = -1 * (ref_dirs_B[1] - ref_dirs_A[1]) * 3600.
 
 print("coarse shift: delta_x", delta_x_0)
 print("coarse shift: delta_y", delta_y_0)
