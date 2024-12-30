@@ -427,10 +427,6 @@ def xcorr(
     #alpha_phase = (180. / np.pi) * np.arctan2(alpha_I, alpha_R)
     #print("alpha_mod ", alpha_mod)
     #print("alpha_phase ", alpha_phase)
-
-
-    
-
     print("setting up Minuit")
     #f = lambda alpha_R, delta_x, delta_y: chi2(
     #    V_Aset_wfilt, V_Bset_wfilt, wcommon, uus, vvs, alpha_R, delta_x,
