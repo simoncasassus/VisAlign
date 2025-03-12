@@ -42,7 +42,7 @@ def completeuvplane(V_half):
 def gridvis(file_ms,
             imsize=2048,
             data_column=None,
-            hermitian_symmetry=True,
+            hermitian_symmetry=False,
             dx=None,
             wantpsf=False,
             wantdirtymap=False):

@@ -13,6 +13,10 @@ import os
 #include_path = HOME + '/gitcommon/VisAlign/'
 #sys.path.append(include_path)
 
+from drive_minuit import exec_minuit
+from drive_nautilus import exec_naut
+from Likelihood import shiftvis
+
 
 def cartesian2polar(outcoords, inputshape, origin, fieldscale=1.):
     rindex, thetaindex = outcoords
@@ -62,39 +66,6 @@ def punch_vis(im, duvalue, fileout, CRPIX1=1., CRPIX2=1.):
     hdu.writeto(fileout, overwrite=True)
 
 
-def shiftvis(V_Aset, uus, vvs, alpha_R, delta_x, delta_y):
-    argphase = 2. * np.pi * (uus * (delta_x * np.pi / (180. * 3600.)) + vvs *
-                             (delta_y * np.pi / (180. * 3600.)))
-    # eulerphase = np.cos(argphase)+1j*np.sin(argphase)
-    eulerphase = np.exp(1j * argphase)
-
-    V_Bset_m = alpha_R * V_Aset * eulerphase
-    return V_Bset_m
-
-
-def chi2(V_Aset, V_Bset, w, uus, vvs, alpha_R, delta_x, delta_y):
-    V_Bset_m = shiftvis(V_Aset, uus, vvs, alpha_R, delta_x, delta_y)
-    diff = V_Bset - V_Bset_m
-    squarediff = (diff.real**2) + (diff.imag**2)
-    retval = np.sum(w * squarediff)
-    if np.isnan(retval):
-        print("chi2 is NaN")
-        retval = np.inf
-    return retval
-
-
-def chi2DERRS(V_Aset, V_Bset, varA, varB, uus, vvs, alpha_R, delta_x, delta_y):
-    V_Bset_m = shiftvis(V_Aset, uus, vvs, alpha_R, delta_x, delta_y)
-    diff = V_Bset - V_Bset_m
-    squarediff = (diff.real**2) + (diff.imag**2)
-    weights = 1. / (varB + alpha_R**2 * varA)
-    retval = np.sum(squarediff * weights)
-    if np.isnan(retval):
-        print("chi2 is NaN")
-        retval = np.inf
-    return retval
-
-
 def xcorr(
         file_visAset,
         file_visBset,  # reference visibility dataset
@@ -107,7 +78,7 @@ def xcorr(
         Grid_Aset=True,
         Grid_Bset=True,
         uvrange=[-1, -1],  # -1: no filtering, None: automatic uvrange
-        DefaultUvrange=False, # automatic uvrange
+        DefaultUvrange=False,  # automatic uvrange
         DoMinos=False,
         kernel_w_Bset=5,
         kernel_w_Aset=5,
@@ -116,6 +87,8 @@ def xcorr(
         min_wA=100.,  # (mJy**-2)
         min_wB=100.,
         Reset=True,
+        run_minuit=True,
+        run_nautilus=False,
         Fix_delta_x=False,
         Fix_delta_y=False,
         Fix_alpha_R=False,
@@ -127,6 +100,9 @@ def xcorr(
     GridScheme: set to either Pyra or tclean. 
     wprof_factor: factor relative to peak weights (median-averaged over azimuth) to define automatic uvrange
     """
+
+    if run_minuit and run_nautilus:
+        sys.exit("choose either run_minuit or run_nautilus")
 
     nx = imsize
     ny = imsize
@@ -428,91 +404,43 @@ def xcorr(
     #print("alpha_mod ", alpha_mod)
     #print("alpha_phase ", alpha_phase)
 
+    domain = [
+        ['alpha_R', 1., range_alpha_R],
+        ['delta_x', 0., range_delta_x],
+        ['delta_y', 0., range_delta_y],
+    ]
 
-    
+    if run_minuit:
+        alpha_R, delta_x, delta_y = exec_minuit(
+            V_Aset_wfilt,
+            V_Bset_wfilt,
+            varA,
+            varB,
+            uus,
+            vvs,
+            dofs,
+            outputdir=outputdir,
+            DoMinos=DoMinos,
+            domain=domain,
+            Fix_delta_x=Fix_delta_x,
+            Fix_delta_y=Fix_delta_y,
+            Fix_alpha_R=Fix_alpha_R,
+            file_bestfit="bestfitparams.txt")
+    elif run_nautilus:
+        alpha_R, delta_x, delta_y = exec_naut(V_Aset_wfilt,
+                                              V_Bset_wfilt,
+                                              varA,
+                                              varB,
+                                              uus,
+                                              vvs,
+                                              Fix_delta_x=Fix_delta_x,
+                                              Fix_delta_y=Fix_delta_y,
+                                              Fix_alpha_R=Fix_alpha_R,
+                                              outputdir=outputdir,
+                                              domain=domain,
+                                              file_bestfit="bestfitparams.txt")
 
-    print("setting up Minuit")
-    #f = lambda alpha_R, delta_x, delta_y: chi2(
-    #    V_Aset_wfilt, V_Bset_wfilt, wcommon, uus, vvs, alpha_R, delta_x,
-    #    delta_y)
-    f = lambda alpha_R, delta_x, delta_y: chi2DERRS(
-        V_Aset_wfilt, V_Bset_wfilt, varA, varB, uus, vvs, alpha_R, delta_x,
-        delta_y)
-    #m = Minuit(f, alpha_R=alpha_R, delta_x=0., delta_y=0.)
-    m = Minuit(f, alpha_R=1., delta_x=0., delta_y=0.)
-    m.errordef = Minuit.LEAST_SQUARES
-    m.print_level = 1
-    m.tol = 1e-4
-
-    m.errors['alpha_R'] = 1E-3
-    m.errors['delta_x'] = 1E-4
-    m.errors['delta_y'] = 1E-4
-
-    if Fix_delta_x:
-        m.fixed['delta_x'] = True
-    else:
-        m.limits['delta_x'] = range_delta_x
-
-    if Fix_delta_y:
-        m.fixed['delta_y'] = True
-    else:
-        m.limits['delta_y'] = range_delta_y
-
-    if Fix_alpha_R:
-        m.fixed['alpha_R'] = True
-    else:
-        m.limits['alpha_R'] = range_alpha_R
-
-    m.errordef = Minuit.LEAST_SQUARES
-
-    print("start Minuit.migrad")
-    m.migrad()
-    m.hesse()
-
-    #print("m.params", m.params)
-    #print("m.errors", m.errors)
-
-    if DoMinos:
-        print("start Minuit.minos")
-        m.minos()
-
-    #print(m.get_param_states())
-    print("m.params", m.params)
-    print("m.errors", m.errors)
-    params = m.params
-    print("Best fit:")
-    for iparam, aparam in enumerate(params):
-        aparam_name = aparam.name
-        aparam_value = aparam.value
-        print(aparam_name, aparam_value)
-
-    pars = [m.values['alpha_R'], m.values['delta_x'],
-            m.values['delta_y']]  # pars for best fit
-    err_pars = [m.errors['alpha_R'], m.errors['delta_x'],
-                m.errors['delta_y']]  #error in pars
-
-    print("best fit %.2e  %.2e  %.2e " % tuple(pars))
-    #print("errors  ", err_pars)
-
-    # bestchi2 = chi2(V_Aset, V_Bset, wcommon, uus, vvs, m.values['alpha_R'],
-    # m.values['delta_x'], m.values['delta_y'])
-
-    bestchi2 = chi2DERRS(V_Aset, V_Bset, varA, varB, uus, vvs,
-                         m.values['alpha_R'], m.values['delta_x'],
-                         m.values['delta_y'])
-
-    #print("bestchi2 ", bestchi2)
-    #print("red bestchi2 ", bestchi2 / dofs)
-    print("Hessian errors scaled by ", np.sqrt(bestchi2 / dofs),
-          "for reduced chi2 = 1")
-    scld_errs = np.array(err_pars) * np.sqrt(bestchi2 / dofs)
-    print("errors %.2e  %.2e  %.2e  " % tuple(scld_errs.tolist()))
-
-    file_bestfitparams = outputdir + 'bestfit_xcorr_wshift.npy'
-    np.save(file_bestfitparams, pars)
-
-    V_Bset_m = shiftvis(V_Aset, uus, vvs, m.values['alpha_R'],
-                        m.values['delta_x'], m.values['delta_y'])
+    V_Bset_m = shiftvis(V_Aset, uus, vvs, alpha_R, delta_x, delta_y)
 
     V_Bset_m_wfilt = V_Bset_m.copy()
     V_Bset_m_wfilt[wmask] = 0.
@@ -536,20 +464,3 @@ def xcorr(
     punch_vis(V_BsetI_wfilt, du, outputdir + 'V_BsetI_wfilt.fits')
     punch_vis(Vamp_Bset_wfilt, du, outputdir + 'Vamp_Bset_wfilt.fits')
     punch_vis(wcommon, du, outputdir + 'w_Bset_wfilt.fits')
-
-
-#file_visAset = 'PDS70_AsetB16_cont_chi2_casarestore.ms.selfcal.statwt'
-#file_visBset = 'PDS70_cont_copy_verylowS_casarestore.ms.selfcal.statwt'
-#dx = 0.004 * u.arcsec  #Bset
-#imsize = 2048
-#
-#xcorr(file_visAset ,
-#      file_visBset,
-#      dx,
-#      imsize,
-#      Grid=True,
-#      Grid_Bset=True,
-#      outputdir='output_xcorr/')
-#
-#
-#
