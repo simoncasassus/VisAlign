@@ -4,15 +4,9 @@ import astropy.units as u
 import numpy as np
 
 HOME = os.environ.get('HOME')
-include_path = HOME + '/common/python/include'
-sys.path.append(include_path)
-
-HOME = os.environ.get('HOME')
 include_path = HOME + '/gitcommon/VisAlign/'
 sys.path.append(include_path)
 
-print(sys.path)
-#import VisAlign.AlignMS as AlignMS
 import AlignMS
 import Dask_editms
 import mskeywords
@@ -101,8 +95,9 @@ AlignMS.xcorr(
     file_visBset,  # reference 
     dx,
     imsize,
-    DoMinos=True,
-    Grid=True,
+    run_nautilus=True,
+    run_minuit=False,
+    Grid_Aset=True,
     Grid_Bset=True,
     GridScheme='Pyra',  # 'tclean'
     Fix_alpha_R=False,
