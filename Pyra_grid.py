@@ -3,7 +3,7 @@ import numpy as np
 import astropy.units as u
 from pyralysis.transformers import Gridder, HermitianSymmetry, DirtyMapper
 from pyralysis.io import FITS
-from astropy.units import Quantity
+#from astropy.units import Quantity
 from flat_ms import plaw_divide
 
 
@@ -69,8 +69,10 @@ def gridvis(
         h_symmetry = HermitianSymmetry(input_data=dataset)
         h_symmetry.apply()
 
-    dx_theo = Quantity(dataset.theo_resolution)
-    dx_theo = dx_theo.to(u.arcsec)
+    #dx_theo = Quantity(dataset.theo_resolution)
+    dx_theo = dataset.theo_resolution
+    #dx_theo = dx_theo.to(u.arcsec)
+    dx_theo = dx_theo * 180 * 3600. / np.pi 
     print("theoretical formula for finest angular scale  ", dx_theo)
     print("recommended  pixel size", dx_theo / 7.0)
 
@@ -78,7 +80,8 @@ def gridvis(
         print("using theoretical formula for pixel size")
         dx = dx_theo / 7.0
     else:
-        print("sky image pixels: ", dx.to(u.arcsec))
+        #print("sky image pixels: ", dx.to(u.arcsec))
+        print("sky image pixels: ", dx)
 
     # du = (1/(imsize*dx)).to(u.lambdas, equivalencies=lambdas_equivalencies())
 

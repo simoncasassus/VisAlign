@@ -131,7 +131,7 @@ def xcorr(
             import Pyra_grid
 
             # import Pyra_grid
-            from pyralysis.units import lambdas_equivalencies
+            # from pyralysis.units import lambdas_equivalencies
 
             (
                 dx,
@@ -147,10 +147,12 @@ def xcorr(
                 dx=dx,
                 data_column=data_column,
             )
-            du = (1 / (imsize * dx)).to(
-                u.lambdas, equivalencies=lambdas_equivalencies()
-            )
-            duvalue = du.value
+            du = (1 / (imsize * dx))
+            #du = (1 / (imsize * dx)).to(
+            #    u.lambdas, equivalencies=lambdas_equivalencies()
+            #)
+            #duvalue = du.value
+            duvalue = du
         elif GridScheme == "tclean":
             import Tclean_grid
 
@@ -184,7 +186,7 @@ def xcorr(
             import Pyra_grid
 
             # import Pyra_grid
-            from pyralysis.units import lambdas_equivalencies
+            #from pyralysis.units import lambdas_equivalencies
 
             (
                 dx,
@@ -200,10 +202,12 @@ def xcorr(
                 dx=dx,
                 data_column=data_column,
             )
-            du = (1 / (imsize * dx)).to(
-                u.lambdas, equivalencies=lambdas_equivalencies()
-            )
-            duvalue = du.value
+            #du = (1 / (imsize * dx)).to(
+            #    u.lambdas, equivalencies=lambdas_equivalencies()
+            #)
+            du = (1 / (imsize * dx))
+            #duvalue = du.value
+            duvalue = du
         elif GridScheme == "tclean":
             import Tclean_grid
 
